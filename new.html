@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirCover Manager — Nouveau</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-dot">AC</span> AirCover Manager</div>
+  <nav>
+    <a href="index.html">Liste</a>
+    <a href="new.html" class="active">Nouveau AirCover</a>
+  </nav>
+</div>
+
+<main>
+  <div class="page-header">
+    <div>
+      <h1>Nouveau AirCover</h1>
+      <p>Le jour de l'AirCover est calculé automatiquement (départ + 14 jours), mais reste modifiable.</p>
+    </div>
+  </div>
+
+  <form class="form-card" id="form">
+
+    <div class="form-section">
+      <h2>Propriétaire de la tâche</h2>
+      <div class="field">
+        <label for="owner-select">Qui doit exécuter l'AirCover ?</label>
+        <div class="owner-picker">
+          <select id="owner-select" required></select>
+          <button type="button" class="btn btn-secondary" id="toggle-new-owner">+ Nouvel utilisateur</button>
+        </div>
+        <div class="new-owner-box" id="new-owner-box">
+          <div class="grid-2">
+            <div class="field">
+              <label for="new-owner-name">Nom</label>
+              <input type="text" id="new-owner-name" placeholder="Ex : Marie Dupont">
+            </div>
+            <div class="field">
+              <label for="new-owner-email">Adresse email</label>
+              <input type="email" id="new-owner-email" placeholder="marie@example.com">
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" id="save-new-owner">Ajouter cet utilisateur</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Le problème</h2>
+      <div class="field">
+        <label for="titre">Titre</label>
+        <input type="text" id="titre" required placeholder="Ex : Canapé taché par le locataire">
+      </div>
+      <div class="field">
+        <label for="description">Description du problème</label>
+        <textarea id="description" required placeholder="Décrivez ce qui s'est passé..."></textarea>
+      </div>
+      <div class="field">
+        <label for="details">Détails complémentaires (optionnel)</label>
+        <textarea id="details" placeholder="Contexte additionnel, démarches déjà entreprises..."></textarea>
+      </div>
+      <div class="field">
+        <label for="attachments">Pièces jointes</label>
+        <input type="file" id="attachments" multiple>
+        <div class="attachment-list" id="attachment-list"></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Séjour concerné</h2>
+      <div class="grid-2">
+        <div class="field">
+          <label for="locataire">Nom du locataire</label>
+          <input type="text" id="locataire" required placeholder="Ex : Marc Dubreuil">
+        </div>
+        <div class="field">
+          <label for="prix">Prix demandé (€)</label>
+          <input type="number" id="prix" required min="0" step="0.01" placeholder="Ex : 120">
+        </div>
+        <div class="field">
+          <label for="date-depart">Date de départ du locataire</label>
+          <input type="date" id="date-depart" required>
+        </div>
+        <div class="field">
+          <label for="date-aircover">Jour où l'AirCover doit être fait</label>
+          <input type="date" id="date-aircover" required>
+          <div class="hint">Calculé automatiquement : date de départ + 14 jours. Modifiable si besoin.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="index.html" class="btn btn-ghost">Annuler</a>
+      <button type="submit" class="btn btn-primary">Enregistrer et envoyer le récapitulatif</button>
+    </div>
+  </form>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+<script>
+  let attachments = [];
+
+  function populateOwners() {
+    const select = document.getElementById('owner-select');
+    const users = loadUsers();
+    select.innerHTML = users.map(u => `<option value="${u.id}">${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('toggle-new-owner').addEventListener('click', () => {
+    document.getElementById('new-owner-box').classList.toggle('open');
+  });
+
+  document.getElementById('save-new-owner').addEventListener('click', () => {
+    const nom = document.getElementById('new-owner-name').value.trim();
+    const email = document.getElementById('new-owner-email').value.trim();
+    if (!nom || !email) {
+      showToast("Merci de renseigner un nom et un email pour le nouvel utilisateur.");
+      return;
+    }
+    const user = addUser(nom, email);
+    populateOwners();
+    document.getElementById('owner-select').value = user.id;
+    document.getElementById('new-owner-name').value = '';
+    document.getElementById('new-owner-email').value = '';
+    document.getElementById('new-owner-box').classList.remove('open');
+    showToast(`Utilisateur "${nom}" ajouté.`);
+  });
+
+  document.getElementById('date-depart').addEventListener('change', (e) => {
+    const dateAircoverInput = document.getElementById('date-aircover');
+    if (e.target.value) {
+      dateAircoverInput.value = addDays(e.target.value, DELAI_JOURS);
+    }
+  });
+
+  document.getElementById('attachments').addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        attachments.push({ name: file.name, dataUrl: reader.result });
+        renderAttachments();
+      };
+      if (file.type.startsWith('image/')) {
+        reader.readAsDataURL(file);
+      } else {
+        attachments.push({ name: file.name });
+        renderAttachments();
+      }
+    });
+    e.target.value = '';
+  });
+
+  function renderAttachments() {
+    const box = document.getElementById('attachment-list');
+    box.innerHTML = attachments.map((a, idx) => `
+      <div class="attachment-chip">
+        ${a.dataUrl ? `<img src="${a.dataUrl}">` : '📄'}
+        <span>${escapeHtml(a.name)}</span>
+        <span class="remove" data-idx="${idx}">✕</span>
+      </div>
+    `).join('');
+    box.querySelectorAll('.remove').forEach(el => {
+      el.addEventListener('click', () => {
+        attachments.splice(Number(el.dataset.idx), 1);
+        renderAttachments();
+      });
+    });
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
+  document.getElementById('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const users = loadUsers();
+    const owner = users.find(u => u.id === document.getElementById('owner-select').value);
+
+    const dateDepart = document.getElementById('date-depart').value;
+    const dateAircover = document.getElementById('date-aircover').value;
+
+    const item = {
+      id: uid('ac'),
+      titre: document.getElementById('titre').value.trim(),
+      description: document.getElementById('description').value.trim(),
+      details: document.getElementById('details').value.trim(),
+      prix: parseFloat(document.getElementById('prix').value),
+      dateDepart,
+      locataire: document.getElementById('locataire').value.trim(),
+      dateAircover,
+      proprietaire: owner,
+      pieceJointes: attachments,
+      statutTermine: false,
+      emailEnvoye: true,
+      emailEnvoyeLe: todayISO(),
+      createdAt: new Date().toISOString(),
+    };
+
+    upsertItem(item);
+    location.href = `detail.html?id=${item.id}&justCreated=1`;
+  });
+
+  populateOwners();
+</script>
+</body>
+</html>

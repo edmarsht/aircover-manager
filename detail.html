@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirCover Manager — Détail</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-dot">AC</span> AirCover Manager</div>
+  <nav>
+    <a href="index.html">Liste</a>
+    <a href="new.html">Nouveau AirCover</a>
+  </nav>
+</div>
+
+<main>
+  <a href="index.html" class="back-link">← Retour à la liste</a>
+
+  <div id="content"></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+<script>
+  const params = new URLSearchParams(location.search);
+  const itemId = params.get('id');
+  const justCreated = params.get('justCreated') === '1';
+  let editMode = false;
+  let item = getItem(itemId);
+
+  if (!item) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        <div class="big-emoji">🔍</div>
+        <p>Cet AirCover est introuvable.</p>
+      </div>`;
+  } else {
+    render();
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function statusBadge(status) {
+    return `<span class="badge badge-${status.key}">${status.label}</span>`;
+  }
+
+  function render() {
+    item = getItem(itemId);
+    const status = getStatus(item);
+    const users = loadUsers();
+
+    document.getElementById('content').innerHTML = `
+      ${justCreated ? `<div class="email-banner">✅ AirCover enregistré. Un email récapitulatif a été envoyé (simulé) à ${escapeHtml(item.proprietaire.email)}.</div>` : ''}
+      ${!item.statutTermine && status.key !== 'done' ? `<div class="reminder-banner">⏰ Rappel automatique prévu le ${formatDateShort(item.dateAircover)} (départ du locataire + ${DELAI_JOURS} jours) à ${escapeHtml(item.proprietaire.email)}.</div>` : ''}
+
+      <div class="detail-header">
+        <div>
+          <div class="title-line" style="margin-bottom:8px;">
+            <h1 style="margin:0;font-size:24px;">${escapeHtml(item.titre)}</h1>
+            ${statusBadge(status)}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          ${!editMode ? `
+            <button class="btn btn-secondary" onclick="toggleTermine()">${item.statutTermine ? '↩️ Rouvrir' : '✅ Marquer terminé'}</button>
+            <button class="btn btn-primary" onclick="enterEdit()">✏️ Modifier</button>
+          ` : `
+            <button class="btn btn-ghost" onclick="cancelEdit()">Annuler</button>
+            <button class="btn btn-primary" onclick="saveEdit()">Enregistrer</button>
+          `}
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div>
+          <div class="card" style="padding:24px;margin-bottom:16px;">
+            ${editMode ? renderEditForm() : renderView()}
+          </div>
+
+          <div class="card" style="padding:24px;">
+            <div class="info-block">
+              <h3>Contenu de l'email envoyé au propriétaire</h3>
+              <div class="email-preview" id="email-preview">${escapeHtml(buildEmailContent(item))}</div>
+              <div style="margin-top:12px;">
+                <button class="btn btn-secondary" onclick="copyEmail()">📋 Copier le contenu</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card side-card">
+          <div class="owner-pill">
+            <div class="avatar">${initials(item.proprietaire.nom)}</div>
+            <div>
+              <div class="owner-name">${escapeHtml(item.proprietaire.nom)}</div>
+              <div class="owner-email">${escapeHtml(item.proprietaire.email)}</div>
+            </div>
+          </div>
+          <div class="side-row"><span class="k">Locataire</span><span class="v">${escapeHtml(item.locataire)}</span></div>
+          <div class="side-row"><span class="k">Prix</span><span class="v">${formatPrice(item.prix)}</span></div>
+          <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
+          <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
+          <div class="side-row"><span class="k">Email envoyé</span><span class="v">${item.emailEnvoye ? '✅ ' + formatDateShort(item.emailEnvoyeLe) : '— pas encore'}</span></div>
+          <div class="side-row"><span class="k">Pièces jointes</span><span class="v">${item.pieceJointes.length}</span></div>
+        </div>
+      </div>
+    `;
+
+  }
+
+  function renderView() {
+    return `
+      <div class="info-block">
+        <h3>Description du problème</h3>
+        <p>${escapeHtml(item.description) || '—'}</p>
+      </div>
+      <div class="info-block">
+        <h3>Détails complémentaires</h3>
+        <p>${escapeHtml(item.details) || '—'}</p>
+      </div>
+      <div class="info-block">
+        <h3>Pièces jointes</h3>
+        ${item.pieceJointes.length ? `
+          <div class="attachment-list">
+            ${item.pieceJointes.map(a => `
+              <div class="attachment-chip">
+                ${a.dataUrl ? `<img src="${a.dataUrl}">` : '📄'}
+                <span>${escapeHtml(a.name)}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<p>Aucune pièce jointe.</p>'}
+      </div>
+    `;
+  }
+
+  function renderEditForm() {
+    return `
+      <div class="field">
+        <label>Titre</label>
+        <input type="text" id="e-titre" value="${escapeHtml(item.titre)}">
+      </div>
+      <div class="field">
+        <label>Description du problème</label>
+        <textarea id="e-description">${escapeHtml(item.description)}</textarea>
+      </div>
+      <div class="field">
+        <label>Détails complémentaires</label>
+        <textarea id="e-details">${escapeHtml(item.details)}</textarea>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Nom du locataire</label>
+          <input type="text" id="e-locataire" value="${escapeHtml(item.locataire)}">
+        </div>
+        <div class="field">
+          <label>Prix demandé (€)</label>
+          <input type="number" id="e-prix" min="0" step="0.01" value="${item.prix}">
+        </div>
+        <div class="field">
+          <label>Date de départ du locataire</label>
+          <input type="date" id="e-date-depart" value="${item.dateDepart}">
+        </div>
+        <div class="field">
+          <label>Jour où l'AirCover doit être fait</label>
+          <input type="date" id="e-date-aircover" value="${item.dateAircover}">
+        </div>
+      </div>
+      <div class="field">
+        <label>Propriétaire de la tâche</label>
+        <select id="e-owner">
+          ${loadUsers().map(u => `<option value="${u.id}" ${u.id === item.proprietaire.id ? 'selected' : ''}>${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('')}
+        </select>
+      </div>
+    `;
+  }
+
+  function enterEdit() {
+    editMode = true;
+    render();
+    document.getElementById('e-date-depart').addEventListener('change', (e) => {
+      document.getElementById('e-date-aircover').value = addDays(e.target.value, DELAI_JOURS);
+    });
+  }
+
+  function cancelEdit() {
+    editMode = false;
+    render();
+  }
+
+  function saveEdit() {
+    const users = loadUsers();
+    const owner = users.find(u => u.id === document.getElementById('e-owner').value);
+    item.titre = document.getElementById('e-titre').value.trim();
+    item.description = document.getElementById('e-description').value.trim();
+    item.details = document.getElementById('e-details').value.trim();
+    item.locataire = document.getElementById('e-locataire').value.trim();
+    item.prix = parseFloat(document.getElementById('e-prix').value);
+    item.dateDepart = document.getElementById('e-date-depart').value;
+    item.dateAircover = document.getElementById('e-date-aircover').value;
+    item.proprietaire = owner;
+    upsertItem(item);
+    editMode = false;
+    render();
+    showToast('Modifications enregistrées.');
+  }
+
+  function toggleTermine() {
+    item.statutTermine = !item.statutTermine;
+    upsertItem(item);
+    render();
+    showToast(item.statutTermine ? 'AirCover marqué comme terminé.' : 'AirCover rouvert.');
+  }
+
+  function copyEmail() {
+    const text = buildEmailContent(item);
+    navigator.clipboard.writeText(text).then(() => showToast('Contenu copié dans le presse-papiers.'));
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+</script>
+</body>
+</html>

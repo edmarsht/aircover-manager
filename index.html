@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirCover Manager — Liste</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo-dot">AC</span> AirCover Manager</div>
+  <nav>
+    <a href="index.html" class="active">Liste</a>
+    <a href="new.html">Nouveau AirCover</a>
+  </nav>
+</div>
+
+<main>
+  <div class="page-header">
+    <div>
+      <h1>Mes AirCovers</h1>
+      <p>Un rappel automatique est envoyé au propriétaire de la tâche 14 jours après le départ du locataire.</p>
+    </div>
+    <a href="new.html" class="btn btn-primary">+ Nouveau AirCover</a>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="chip active" data-filter="all">Tous</button>
+    <button class="chip" data-filter="late">En retard</button>
+    <button class="chip" data-filter="today">Aujourd'hui</button>
+    <button class="chip" data-filter="upcoming">À venir</button>
+    <button class="chip" data-filter="done">Terminés</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="empty-state" id="empty" style="display:none">
+    <div class="big-emoji">🧾</div>
+    <p>Aucun AirCover dans cette catégorie.</p>
+  </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+  let currentFilter = 'all';
+
+  function statusBadge(status) {
+    return `<span class="badge badge-${status.key}">${status.label}</span>`;
+  }
+
+  function render() {
+    const items = loadItems()
+      .map(i => ({ item: i, status: getStatus(i) }))
+      .sort((a, b) => new Date(a.item.dateAircover) - new Date(b.item.dateAircover));
+
+    const filtered = currentFilter === 'all'
+      ? items
+      : items.filter(x => x.status.key === currentFilter);
+
+    const list = document.getElementById('list');
+    const empty = document.getElementById('empty');
+
+    if (filtered.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = filtered.map(({ item, status }) => `
+      <div class="card aircover-row" onclick="location.href='detail.html?id=${item.id}'">
+        <div class="col-main">
+          <div class="title-line">
+            <h3>${escapeHtml(item.titre)}</h3>
+            ${statusBadge(status)}
+          </div>
+          <div class="meta-line">
+            <span>👤 ${escapeHtml(item.proprietaire.nom)}</span>
+            <span>🏠 Locataire : ${escapeHtml(item.locataire)}</span>
+            <span>📎 ${item.pieceJointes.length} pièce(s) jointe(s)</span>
+            ${item.emailEnvoye ? '<span>✅ Email envoyé</span>' : '<span>✉️ Email non envoyé</span>'}
+          </div>
+        </div>
+        <div class="col-price">${formatPrice(item.prix)}</div>
+        <div class="col-date">
+          <div class="label">AirCover à faire le</div>
+          <div class="value">${formatDateShort(item.dateAircover)}</div>
+        </div>
+        <div class="chevron">›</div>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('filters').addEventListener('click', (e) => {
+    const btn = e.target.closest('.chip');
+    if (!btn) return;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>
