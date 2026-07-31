@@ -28,6 +28,7 @@
   import {
     getItem, updateItem, loadUsers, getStatus, buildEmailContent,
     formatPrice, formatDateShort, initials, addDays, DELAI_JOURS,
+    uploadAttachment, openLightbox,
   } from './app.js';
 
   const params = new URLSearchParams(location.search);
@@ -36,6 +37,7 @@
   let editMode = false;
   let item = null;
   let users = [];
+  let editNewAttachments = [];
 
   async function init() {
     item = await getItem(itemId);
@@ -83,7 +85,7 @@
             <button class="btn btn-primary" onclick="enterEdit()">✏️ Modifier</button>
           ` : `
             <button class="btn btn-ghost" onclick="cancelEdit()">Annuler</button>
-            <button class="btn btn-primary" onclick="saveEdit()">Enregistrer</button>
+            <button class="btn btn-primary" onclick="saveEdit(event)">Enregistrer</button>
           `}
         </div>
       </div>
@@ -127,6 +129,20 @@
 
   }
 
+  function renderAttachmentChips(pieceJointes) {
+    if (!pieceJointes.length) return '<p>Aucune pièce jointe.</p>';
+    return `
+      <div class="attachment-list">
+        ${pieceJointes.map(a => `
+          <div class="attachment-chip" data-url="${a.url}" data-name="${escapeHtml(a.name)}" data-image="${a.isImage ? '1' : '0'}">
+            ${a.isImage ? `<img src="${a.url}">` : '📄'}
+            <span>${escapeHtml(a.name)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
   function renderView() {
     return `
       <div class="info-block">
@@ -139,16 +155,7 @@
       </div>
       <div class="info-block">
         <h3>Pièces jointes</h3>
-        ${item.pieceJointes.length ? `
-          <div class="attachment-list">
-            ${item.pieceJointes.map(a => `
-              <a class="attachment-chip" href="${a.url}" target="_blank" rel="noopener">
-                ${a.isImage ? `<img src="${a.url}">` : '📄'}
-                <span>${escapeHtml(a.name)}</span>
-              </a>
-            `).join('')}
-          </div>
-        ` : '<p>Aucune pièce jointe.</p>'}
+        ${renderAttachmentChips(item.pieceJointes)}
       </div>
     `;
   }
@@ -195,14 +202,45 @@
           ${users.map(u => `<option value="${u.id}" ${u.id === item.proprietaire.id ? 'selected' : ''}>${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('')}
         </select>
       </div>
+      <div class="field">
+        <label>Pièces jointes</label>
+        ${renderAttachmentChips(item.pieceJointes)}
+      </div>
+      <div class="field">
+        <label>Ajouter des pièces jointes</label>
+        <input type="file" id="e-attachments-input" multiple>
+        <div class="attachment-list" id="e-new-attachment-list"></div>
+      </div>
     `;
+  }
+
+  function renderEditAttachmentPreviews() {
+    const box = document.getElementById('e-new-attachment-list');
+    if (!box) return;
+    box.innerHTML = editNewAttachments.map((a, idx) => `
+      <div class="attachment-chip" data-preview-idx="${idx}">
+        ${a.isImage ? `<img src="${a.previewUrl}">` : '📄'}
+        <span>${escapeHtml(a.name)}</span>
+        <span class="remove" data-remove-idx="${idx}">✕</span>
+      </div>
+    `).join('');
   }
 
   async function enterEdit() {
     editMode = true;
+    editNewAttachments = [];
     await render();
     document.getElementById('e-date-depart').addEventListener('change', (e) => {
       document.getElementById('e-date-aircover').value = addDays(e.target.value, DELAI_JOURS);
+    });
+    document.getElementById('e-attachments-input').addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        const isImage = file.type.startsWith('image/');
+        editNewAttachments.push({ file, name: file.name, previewUrl: URL.createObjectURL(file), isImage });
+      });
+      renderEditAttachmentPreviews();
+      e.target.value = '';
     });
   }
 
@@ -211,7 +249,11 @@
     await render();
   }
 
-  async function saveEdit() {
+  async function saveEdit(e) {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = 'Enregistrement…';
+
     const owner = users.find(u => u.id === document.getElementById('e-owner').value);
     const data = {
       titre: document.getElementById('e-titre').value.trim(),
@@ -224,8 +266,13 @@
       dateAircover: document.getElementById('e-date-aircover').value,
       proprietaire: owner,
     };
+    if (editNewAttachments.length) {
+      const uploaded = await Promise.all(editNewAttachments.map(a => uploadAttachment(item.id, a.file)));
+      data.pieceJointes = [...item.pieceJointes, ...uploaded];
+    }
     await updateItem(item.id, data);
     editMode = false;
+    editNewAttachments = [];
     await render();
     showToast('Modifications enregistrées.');
   }
@@ -239,6 +286,23 @@
   window.cancelEdit = cancelEdit;
   window.saveEdit = saveEdit;
   window.copyEmail = copyEmail;
+
+  document.getElementById('content').addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('.remove[data-remove-idx]');
+    if (removeBtn) {
+      editNewAttachments.splice(Number(removeBtn.dataset.removeIdx), 1);
+      renderEditAttachmentPreviews();
+      return;
+    }
+    const chip = e.target.closest('.attachment-chip');
+    if (!chip) return;
+    if (chip.dataset.previewIdx !== undefined) {
+      const a = editNewAttachments[Number(chip.dataset.previewIdx)];
+      if (a) openLightbox({ url: a.previewUrl, name: a.name, isImage: a.isImage });
+    } else if (chip.dataset.url) {
+      openLightbox({ url: chip.dataset.url, name: chip.dataset.name, isImage: chip.dataset.image === '1' });
+    }
+  });
 
   init();
 

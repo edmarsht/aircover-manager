@@ -134,6 +134,66 @@ export async function uploadAttachment(itemId, file) {
   return { name: file.name, url, isImage: file.type.startsWith('image/'), path };
 }
 
+/* ---------- Lightbox pièce jointe (plein écran + téléchargement) ---------- */
+
+async function downloadAttachment(url, name) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    window.open(url, '_blank');
+  }
+}
+
+export function openLightbox({ url, name, isImage }) {
+  const safeName = document.createElement('div');
+  safeName.textContent = name;
+  const escapedName = safeName.innerHTML;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'lightbox-overlay';
+  overlay.innerHTML = `
+    <div class="lightbox-toolbar">
+      <span class="lightbox-name">${escapedName}</span>
+      <div class="lightbox-actions">
+        <button type="button" class="lightbox-btn" data-action="download">⬇️ Télécharger</button>
+        <button type="button" class="lightbox-btn" data-action="close">✕</button>
+      </div>
+    </div>
+    <div class="lightbox-body">
+      ${isImage
+        ? `<img class="lightbox-img" src="${url}" alt="${escapedName}">`
+        : `<div class="lightbox-file-card"><div class="lightbox-file-icon">📄</div><div>${escapedName}</div></div>`}
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  function close() {
+    overlay.remove();
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onKey);
+  }
+
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+  }
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.closest('[data-action="close"]')) close();
+    if (e.target.closest('[data-action="download"]')) downloadAttachment(url, name);
+  });
+  document.addEventListener('keydown', onKey);
+}
+
 /* ---------- Contenu de l'email simulé ---------- */
 
 export function buildEmailContent(item) {

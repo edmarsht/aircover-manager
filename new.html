@@ -108,7 +108,7 @@
 <div class="toast" id="toast"></div>
 
 <script type="module">
-  import { loadUsers, addUser, addDays, DELAI_JOURS, todayISO, createItem, updateItem, uploadAttachment } from './app.js';
+  import { loadUsers, addUser, addDays, DELAI_JOURS, todayISO, createItem, updateItem, uploadAttachment, openLightbox } from './app.js';
 
   let attachments = [];
   let users = [];
@@ -162,7 +162,7 @@
     const files = Array.from(e.target.files);
     files.forEach(file => {
       const isImage = file.type.startsWith('image/');
-      attachments.push({ file, name: file.name, previewUrl: isImage ? URL.createObjectURL(file) : null });
+      attachments.push({ file, name: file.name, previewUrl: URL.createObjectURL(file), isImage });
       renderAttachments();
     });
     e.target.value = '';
@@ -171,19 +171,27 @@
   function renderAttachments() {
     const box = document.getElementById('attachment-list');
     box.innerHTML = attachments.map((a, idx) => `
-      <div class="attachment-chip">
-        ${a.previewUrl ? `<img src="${a.previewUrl}">` : '📄'}
+      <div class="attachment-chip" data-idx="${idx}">
+        ${a.isImage ? `<img src="${a.previewUrl}">` : '📄'}
         <span>${escapeHtml(a.name)}</span>
         <span class="remove" data-idx="${idx}">✕</span>
       </div>
     `).join('');
-    box.querySelectorAll('.remove').forEach(el => {
-      el.addEventListener('click', () => {
-        attachments.splice(Number(el.dataset.idx), 1);
-        renderAttachments();
-      });
-    });
   }
+
+  document.getElementById('attachment-list').addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('.remove');
+    if (removeBtn) {
+      attachments.splice(Number(removeBtn.dataset.idx), 1);
+      renderAttachments();
+      return;
+    }
+    const chip = e.target.closest('.attachment-chip');
+    if (chip) {
+      const a = attachments[Number(chip.dataset.idx)];
+      if (a) openLightbox({ url: a.previewUrl, name: a.name, isImage: a.isImage });
+    }
+  });
 
   function showToast(msg) {
     const toast = document.getElementById('toast');
