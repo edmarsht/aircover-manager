@@ -88,12 +88,20 @@ export async function loadUsers() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function addUser(nom, email) {
+export async function addUser(nom, email, telephone) {
   const users = await loadUsers();
   const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (existing) return existing;
-  const docRef = await addDoc(collection(db, 'users'), { nom, email });
-  return { id: docRef.id, nom, email };
+  if (existing) {
+    const changes = {};
+    if (nom) changes.nom = nom;
+    if (telephone !== undefined) changes.telephone = telephone;
+    if (Object.keys(changes).length) {
+      await setDoc(doc(db, 'users', existing.id), changes, { merge: true });
+    }
+    return { ...existing, ...changes };
+  }
+  const docRef = await addDoc(collection(db, 'users'), { nom, email, telephone: telephone || '' });
+  return { id: docRef.id, nom, email, telephone: telephone || '' };
 }
 
 /* ---------- Firestore : aircovers ---------- */

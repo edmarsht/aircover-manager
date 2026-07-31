@@ -120,7 +120,8 @@
           <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
           <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
           <div class="side-row"><span class="k">Email envoyé</span><span class="v">${item.emailEnvoye ? '✅ ' + formatDateShort(item.emailEnvoyeLe) : '— pas encore'}</span></div>
-          <div class="side-row"><span class="k">Rappel jour J</span><span class="v">${item.reminderEnvoye ? '✅ ' + formatDateShort(item.reminderEnvoyeLe) : '— pas encore'}</span></div>
+          <div class="side-row"><span class="k">Rappel email jour J</span><span class="v">${item.reminderEnvoye ? '✅ ' + formatDateShort(item.reminderEnvoyeLe) : '— pas encore'}</span></div>
+          <div class="side-row"><span class="k">Rappel SMS jour J</span><span class="v">${item.smsEnvoye ? '✅ ' + formatDateShort(item.smsEnvoyeLe) : (item.proprietaire.telephone ? '— pas encore' : '— pas de téléphone')}</span></div>
           <div class="side-row"><span class="k">Pièces jointes</span><span class="v">${item.pieceJointes.length}</span></div>
         </div>
       </div>

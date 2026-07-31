@@ -8,6 +8,9 @@ const db = admin.firestore();
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const CRON_SECRET = process.env.CRON_SECRET;
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const TWILIO_SENDER_ID = process.env.TWILIO_SENDER_ID;
 const DELAI_JOURS = 14;
 
 function todayISO() {
@@ -84,6 +87,38 @@ async function sendEmail(item) {
   }
 }
 
+function buildSmsContent(item) {
+  return `Rappel AirCover Manager : vous devez réaliser un AirCover aujourd'hui pour l'appartement ${item.appartement || '—'}, voyageur ${item.locataire}.`;
+}
+
+/* Numéros français saisis en local (ex: "06 12 34 56 78") → format E.164 attendu par Twilio. */
+function toE164France(phone) {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('33')) return `+${digits}`;
+  if (digits.startsWith('0')) return `+33${digits.slice(1)}`;
+  return `+${digits}`;
+}
+
+async function sendSms(item) {
+  const to = toE164France(item.proprietaire.telephone);
+  const body = new URLSearchParams({
+    To: to,
+    From: TWILIO_SENDER_ID,
+    Body: buildSmsContent(item),
+  });
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body,
+  });
+  if (!res.ok) {
+    throw new Error(`Twilio ${res.status}: ${await res.text()}`);
+  }
+}
+
 http('sendAircoverReminders', async (req, res) => {
   if (!CRON_SECRET || req.query.key !== CRON_SECRET) {
     res.status(403).send('forbidden');
@@ -96,21 +131,36 @@ http('sendAircoverReminders', async (req, res) => {
     .where('statutTermine', '==', false)
     .get();
 
-  const sent = [];
-  const failed = [];
+  const emailSent = [];
+  const emailFailed = [];
+  const smsSent = [];
+  const smsFailed = [];
 
   for (const docSnap of snap.docs) {
     const item = { id: docSnap.id, ...docSnap.data() };
-    if (item.reminderEnvoye) continue;
-    try {
-      await sendEmail(item);
-      await docSnap.ref.update({ reminderEnvoye: true, reminderEnvoyeLe: today });
-      sent.push(item.id);
-    } catch (err) {
-      console.error(`Échec envoi pour ${item.id}:`, err.message);
-      failed.push(item.id);
+
+    if (!item.reminderEnvoye) {
+      try {
+        await sendEmail(item);
+        await docSnap.ref.update({ reminderEnvoye: true, reminderEnvoyeLe: today });
+        emailSent.push(item.id);
+      } catch (err) {
+        console.error(`Échec email pour ${item.id}:`, err.message);
+        emailFailed.push(item.id);
+      }
+    }
+
+    if (!item.smsEnvoye && item.proprietaire.telephone) {
+      try {
+        await sendSms(item);
+        await docSnap.ref.update({ smsEnvoye: true, smsEnvoyeLe: today });
+        smsSent.push(item.id);
+      } catch (err) {
+        console.error(`Échec SMS pour ${item.id}:`, err.message);
+        smsFailed.push(item.id);
+      }
     }
   }
 
-  res.status(200).json({ date: today, sent, failed });
+  res.status(200).json({ date: today, emailSent, emailFailed, smsSent, smsFailed });
 });

@@ -44,7 +44,12 @@
               <input type="email" id="new-owner-email" placeholder="marie@example.com">
             </div>
           </div>
-          <button type="button" class="btn btn-primary" id="save-new-owner">Ajouter cet utilisateur</button>
+          <div class="field">
+            <label for="new-owner-phone">Téléphone (optionnel, pour le SMS de rappel)</label>
+            <input type="tel" id="new-owner-phone" placeholder="06 12 34 56 78">
+          </div>
+          <div class="hint">Si l'email existe déjà, ça met simplement à jour le nom et le téléphone de cet utilisateur.</div>
+          <button type="button" class="btn btn-primary" id="save-new-owner">Ajouter / mettre à jour cet utilisateur</button>
         </div>
       </div>
     </div>
@@ -137,17 +142,19 @@
   document.getElementById('save-new-owner').addEventListener('click', async () => {
     const nom = document.getElementById('new-owner-name').value.trim();
     const email = document.getElementById('new-owner-email').value.trim();
+    const telephone = document.getElementById('new-owner-phone').value.trim();
     if (!nom || !email) {
       showToast("Merci de renseigner un nom et un email pour le nouvel utilisateur.");
       return;
     }
-    const user = await addUser(nom, email);
+    const user = await addUser(nom, email, telephone);
     await populateOwners();
     document.getElementById('owner-select').value = user.id;
     document.getElementById('new-owner-name').value = '';
     document.getElementById('new-owner-email').value = '';
+    document.getElementById('new-owner-phone').value = '';
     document.getElementById('new-owner-box').classList.remove('open');
-    showToast(`Utilisateur "${nom}" ajouté.`);
+    showToast(`Utilisateur "${nom}" ajouté / mis à jour.`);
   });
 
   document.getElementById('date-depart').addEventListener('change', (e) => {
@@ -229,6 +236,8 @@
         statutTermine: false,
         reminderEnvoye: false,
         reminderEnvoyeLe: null,
+        smsEnvoye: false,
+        smsEnvoyeLe: null,
         emailEnvoye: true,
         emailEnvoyeLe: todayISO(),
         createdAt: new Date().toISOString(),
