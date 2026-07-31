@@ -67,7 +67,9 @@
 
     document.getElementById('content').innerHTML = `
       ${justCreated ? `<div class="email-banner">✅ AirCover enregistré. Un email récapitulatif a été envoyé (simulé) à ${escapeHtml(item.proprietaire.email)}.</div>` : ''}
-      ${!item.statutTermine && status.key !== 'done' ? `<div class="reminder-banner">⏰ Rappel automatique prévu le ${formatDateShort(item.dateAircover)} (départ du locataire + ${DELAI_JOURS} jours) à ${escapeHtml(item.proprietaire.email)}.</div>` : ''}
+      ${item.reminderEnvoye
+        ? `<div class="email-banner">✅ Rappel automatique envoyé le ${formatDateShort(item.reminderEnvoyeLe)} à ${escapeHtml(item.proprietaire.email)}.</div>`
+        : (!item.statutTermine && status.key !== 'done' ? `<div class="reminder-banner">⏰ Rappel automatique prévu le ${formatDateShort(item.dateAircover)} (départ du locataire + ${DELAI_JOURS} jours) à ${escapeHtml(item.proprietaire.email)}.</div>` : '')}
 
       <div class="detail-header">
         <div>
@@ -117,6 +119,7 @@
           <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
           <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
           <div class="side-row"><span class="k">Email envoyé</span><span class="v">${item.emailEnvoye ? '✅ ' + formatDateShort(item.emailEnvoyeLe) : '— pas encore'}</span></div>
+          <div class="side-row"><span class="k">Rappel jour J</span><span class="v">${item.reminderEnvoye ? '✅ ' + formatDateShort(item.reminderEnvoyeLe) : '— pas encore'}</span></div>
           <div class="side-row"><span class="k">Pièces jointes</span><span class="v">${item.pieceJointes.length}</span></div>
         </div>
       </div>
