@@ -80,7 +80,6 @@
         </div>
         <div style="display:flex;gap:8px;">
           ${!editMode ? `
-            <button class="btn btn-secondary" onclick="toggleTermine()">${item.statutTermine ? '↩️ Rouvrir' : '✅ Marquer terminé'}</button>
             <button class="btn btn-primary" onclick="enterEdit()">✏️ Modifier</button>
           ` : `
             <button class="btn btn-ghost" onclick="cancelEdit()">Annuler</button>
@@ -114,6 +113,7 @@
               <div class="owner-email">${escapeHtml(item.proprietaire.email)}</div>
             </div>
           </div>
+          <div class="side-row"><span class="k">Appartement</span><span class="v">${escapeHtml(item.appartement) || '—'}</span></div>
           <div class="side-row"><span class="k">Locataire</span><span class="v">${escapeHtml(item.locataire)}</span></div>
           <div class="side-row"><span class="k">Prix</span><span class="v">${formatPrice(item.prix)}</span></div>
           <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
@@ -169,6 +169,10 @@
       </div>
       <div class="grid-2">
         <div class="field">
+          <label>Appartement concerné</label>
+          <input type="text" id="e-appartement" value="${escapeHtml(item.appartement)}">
+        </div>
+        <div class="field">
           <label>Nom du locataire</label>
           <input type="text" id="e-locataire" value="${escapeHtml(item.locataire)}">
         </div>
@@ -213,6 +217,7 @@
       titre: document.getElementById('e-titre').value.trim(),
       description: document.getElementById('e-description').value.trim(),
       details: document.getElementById('e-details').value.trim(),
+      appartement: document.getElementById('e-appartement').value.trim(),
       locataire: document.getElementById('e-locataire').value.trim(),
       prix: parseFloat(document.getElementById('e-prix').value),
       dateDepart: document.getElementById('e-date-depart').value,
@@ -225,12 +230,6 @@
     showToast('Modifications enregistrées.');
   }
 
-  async function toggleTermine() {
-    await updateItem(item.id, { statutTermine: !item.statutTermine });
-    await render();
-    showToast(item.statutTermine ? 'AirCover marqué comme terminé.' : 'AirCover rouvert.');
-  }
-
   function copyEmail() {
     const text = buildEmailContent(item);
     navigator.clipboard.writeText(text).then(() => showToast('Contenu copié dans le presse-papiers.'));
@@ -239,7 +238,6 @@
   window.enterEdit = enterEdit;
   window.cancelEdit = cancelEdit;
   window.saveEdit = saveEdit;
-  window.toggleTermine = toggleTermine;
   window.copyEmail = copyEmail;
 
   init();

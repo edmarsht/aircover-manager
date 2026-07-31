@@ -145,6 +145,7 @@ export function buildEmailContent(item) {
   blocks.push(
     [
       `Titre : ${item.titre}`,
+      `Appartement concerné : ${item.appartement || '—'}`,
       `Locataire concerné : ${item.locataire}`,
       `Date de départ du locataire : ${formatDateShort(item.dateDepart)}`,
       `Jour limite pour faire l'AirCover : ${formatDateShort(item.dateAircover)}`,

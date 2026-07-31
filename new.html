@@ -75,6 +75,10 @@
       <h2>Séjour concerné</h2>
       <div class="grid-2">
         <div class="field">
+          <label for="appartement">Appartement concerné</label>
+          <input type="text" id="appartement" required placeholder="Ex : Appartement Bastille">
+        </div>
+        <div class="field">
           <label for="locataire">Nom du locataire</label>
           <input type="text" id="locataire" required placeholder="Ex : Marc Dubreuil">
         </div>
@@ -210,6 +214,7 @@
         details: document.getElementById('details').value.trim(),
         prix: parseFloat(document.getElementById('prix').value),
         dateDepart,
+        appartement: document.getElementById('appartement').value.trim(),
         locataire: document.getElementById('locataire').value.trim(),
         dateAircover,
         proprietaire: owner,

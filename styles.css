@@ -591,6 +591,21 @@ input:focus, textarea:focus, select:focus {
 @media (max-width: 760px) {
   .grid-2 { grid-template-columns: 1fr; }
   .detail-grid { grid-template-columns: 1fr; }
-  .aircover-row { flex-wrap: wrap; }
-  .col-date { text-align: left; }
+}
+
+@media (max-width: 600px) {
+  .list { gap: 6px; }
+  .aircover-row {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .aircover-row h3 { font-size: 13px; }
+  .badge { padding: 1px 6px; font-size: 10px; }
+  .meta-line { font-size: 10.5px; gap: 6px; }
+  .meta-line span:nth-child(n+4) { display: none; }
+  .col-price { font-size: 12px; }
+  .col-date { min-width: auto; text-align: right; }
+  .col-date .label { display: none; }
+  .col-date .value { font-size: 11px; }
+  .chevron { display: none; }
 }
