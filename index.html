@@ -95,7 +95,7 @@
             <span>🏢 ${escapeHtml(item.appartement || '—')}</span>
             <span>🏠 Locataire : ${escapeHtml(item.locataire)}</span>
             <span>📎 ${item.pieceJointes.length} pièce(s) jointe(s)</span>
-            ${item.emailEnvoye ? '<span>✅ Email envoyé</span>' : '<span>✉️ Email non envoyé</span>'}
+            ${item.reminderEnvoye ? '<span>✅ Rappel envoyé</span>' : '<span>✉️ Rappel à venir</span>'}
           </div>
         </div>
         <div class="col-price">${formatPrice(item.prix)}</div>
