@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirCover Manager — Utilisateurs</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="index.html"><span class="logo-dot">AC</span> AirCover Manager</a>
+  <nav>
+    <a href="index.html">Liste</a>
+    <a href="users.html" class="icon-link active" title="Utilisateurs">⚙️</a>
+  </nav>
+</div>
+
+<main>
+  <div class="page-header">
+    <div>
+      <h1>Utilisateurs</h1>
+      <p>Gère les propriétaires de tâche : ajoute, modifie ou supprime.</p>
+    </div>
+  </div>
+
+  <div class="card" style="padding:24px;margin-bottom:20px;">
+    <h2 style="margin-top:0;">Ajouter un utilisateur</h2>
+    <div class="grid-2">
+      <div class="field">
+        <label for="new-nom">Nom</label>
+        <input type="text" id="new-nom" placeholder="Ex : Marie Dupont">
+      </div>
+      <div class="field">
+        <label for="new-email">Adresse email</label>
+        <input type="email" id="new-email" placeholder="marie@example.com">
+      </div>
+    </div>
+    <div class="field">
+      <label for="new-tel">Téléphone (optionnel, pour le SMS de rappel)</label>
+      <input type="tel" id="new-tel" placeholder="06 12 34 56 78">
+    </div>
+    <button class="btn btn-primary" id="add-user-btn">Ajouter cet utilisateur</button>
+  </div>
+
+  <div id="users-list"></div>
+
+  <div class="empty-state" id="empty" style="display:none">
+    <p>Aucun utilisateur pour le moment.</p>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { loadUsers, addUser, updateUser, deleteUser } from './app.js';
+
+  let users = [];
+  let editingId = null;
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  async function loadAndRender() {
+    document.getElementById('users-list').innerHTML = '<p style="padding:16px 0;color:var(--ink-soft)">Chargement…</p>';
+    users = await loadUsers();
+    render();
+  }
+
+  function render() {
+    const list = document.getElementById('users-list');
+    const empty = document.getElementById('empty');
+
+    if (!users.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = users.map(u => `
+      <div class="card" style="padding:18px 20px;margin-bottom:10px;">
+        ${editingId === u.id ? `
+          <div class="grid-2">
+            <div class="field">
+              <label>Nom</label>
+              <input type="text" id="e-nom-${u.id}" value="${escapeHtml(u.nom)}">
+            </div>
+            <div class="field">
+              <label>Adresse email</label>
+              <input type="email" id="e-email-${u.id}" value="${escapeHtml(u.email)}">
+            </div>
+          </div>
+          <div class="field">
+            <label>Téléphone</label>
+            <input type="tel" id="e-tel-${u.id}" value="${escapeHtml(u.telephone)}" placeholder="06 12 34 56 78">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-ghost" data-action="cancel" data-id="${u.id}">Annuler</button>
+            <button class="btn btn-primary" data-action="save" data-id="${u.id}">Enregistrer</button>
+          </div>
+        ` : `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:700;font-size:15px;">${escapeHtml(u.nom)}</div>
+              <div style="color:var(--ink-soft);font-size:13px;">
+                ${escapeHtml(u.email)} ${u.telephone ? '· ' + escapeHtml(u.telephone) : '· pas de téléphone'}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary" data-action="edit" data-id="${u.id}">✏️ Modifier</button>
+              <button class="btn btn-ghost" data-action="delete" data-id="${u.id}">🗑️ Supprimer</button>
+            </div>
+          </div>
+        `}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('users-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+
+    if (action === 'edit') {
+      editingId = id;
+      render();
+    } else if (action === 'cancel') {
+      editingId = null;
+      render();
+    } else if (action === 'save') {
+      const nom = document.getElementById(`e-nom-${id}`).value.trim();
+      const email = document.getElementById(`e-email-${id}`).value.trim();
+      const telephone = document.getElementById(`e-tel-${id}`).value.trim();
+      if (!nom || !email) {
+        showToast('Merci de renseigner un nom et un email.');
+        return;
+      }
+      await updateUser(id, { nom, email, telephone });
+      editingId = null;
+      await loadAndRender();
+      showToast('Utilisateur mis à jour.');
+    } else if (action === 'delete') {
+      const user = users.find(u => u.id === id);
+      if (!confirm(`Supprimer "${user.nom}" ? Les AirCovers déjà créés garderont son nom, mais il ne sera plus proposé pour les nouveaux.`)) return;
+      await deleteUser(id);
+      await loadAndRender();
+      showToast('Utilisateur supprimé.');
+    }
+  });
+
+  document.getElementById('add-user-btn').addEventListener('click', async () => {
+    const nom = document.getElementById('new-nom').value.trim();
+    const email = document.getElementById('new-email').value.trim();
+    const telephone = document.getElementById('new-tel').value.trim();
+    if (!nom || !email) {
+      showToast('Merci de renseigner un nom et un email.');
+      return;
+    }
+    await addUser(nom, email, telephone);
+    document.getElementById('new-nom').value = '';
+    document.getElementById('new-email').value = '';
+    document.getElementById('new-tel').value = '';
+    await loadAndRender();
+    showToast(`Utilisateur "${nom}" ajouté.`);
+  });
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
+  loadAndRender();
+</script>
+</body>
+</html>

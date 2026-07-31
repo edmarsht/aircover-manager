@@ -104,6 +104,14 @@ export async function addUser(nom, email, telephone) {
   return { id: docRef.id, nom, email, telephone: telephone || '' };
 }
 
+export async function updateUser(id, data) {
+  await setDoc(doc(db, 'users', id), data, { merge: true });
+}
+
+export async function deleteUser(id) {
+  await deleteDoc(doc(db, 'users', id));
+}
+
 /* ---------- Firestore : aircovers ---------- */
 
 export async function loadItems() {
