@@ -27,8 +27,7 @@
 
   <div class="filters" id="filters">
     <button class="chip active" data-filter="all">Tous</button>
-    <button class="chip" data-filter="late">En retard</button>
-    <button class="chip" data-filter="today">Aujourd'hui</button>
+    <button class="chip" data-filter="today" id="chip-today">Aujourd'hui</button>
     <button class="chip" data-filter="upcoming">À venir</button>
     <button class="chip" data-filter="done">Terminés</button>
   </div>
@@ -41,18 +40,28 @@
   </div>
 </main>
 
-<script src="app.js"></script>
-<script>
+<script type="module">
+  import { loadItems, getStatus, formatPrice, formatDateShort } from './app.js';
+
   let currentFilter = 'all';
+  let allItems = [];
 
   function statusBadge(status) {
     return `<span class="badge badge-${status.key}">${status.label}</span>`;
   }
 
+  async function loadAndRender() {
+    document.getElementById('list').innerHTML = '<p style="padding:24px;color:var(--muted)">Chargement…</p>';
+    allItems = await loadItems();
+    render();
+  }
+
   function render() {
-    const items = loadItems()
+    const items = allItems
       .map(i => ({ item: i, status: getStatus(i) }))
       .sort((a, b) => new Date(a.item.dateAircover) - new Date(b.item.dateAircover));
+
+    document.getElementById('chip-today').classList.toggle('has-today', items.some(x => x.status.key === 'today'));
 
     const filtered = currentFilter === 'all'
       ? items
@@ -107,7 +116,7 @@
     render();
   });
 
-  render();
+  loadAndRender();
 </script>
 </body>
 </html>

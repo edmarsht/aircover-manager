@@ -24,22 +24,30 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js"></script>
-<script>
+<script type="module">
+  import {
+    getItem, updateItem, loadUsers, getStatus, buildEmailContent,
+    formatPrice, formatDateShort, initials, addDays, DELAI_JOURS,
+  } from './app.js';
+
   const params = new URLSearchParams(location.search);
   const itemId = params.get('id');
   const justCreated = params.get('justCreated') === '1';
   let editMode = false;
-  let item = getItem(itemId);
+  let item = null;
+  let users = [];
 
-  if (!item) {
-    document.getElementById('content').innerHTML = `
-      <div class="empty-state">
-        <div class="big-emoji">🔍</div>
-        <p>Cet AirCover est introuvable.</p>
-      </div>`;
-  } else {
-    render();
+  async function init() {
+    item = await getItem(itemId);
+    if (!item) {
+      document.getElementById('content').innerHTML = `
+        <div class="empty-state">
+          <div class="big-emoji">🔍</div>
+          <p>Cet AirCover est introuvable.</p>
+        </div>`;
+      return;
+    }
+    await render();
   }
 
   function escapeHtml(str) {
@@ -52,10 +60,10 @@
     return `<span class="badge badge-${status.key}">${status.label}</span>`;
   }
 
-  function render() {
-    item = getItem(itemId);
+  async function render() {
+    item = await getItem(itemId);
+    if (editMode) users = await loadUsers();
     const status = getStatus(item);
-    const users = loadUsers();
 
     document.getElementById('content').innerHTML = `
       ${justCreated ? `<div class="email-banner">✅ AirCover enregistré. Un email récapitulatif a été envoyé (simulé) à ${escapeHtml(item.proprietaire.email)}.</div>` : ''}
@@ -131,10 +139,10 @@
         ${item.pieceJointes.length ? `
           <div class="attachment-list">
             ${item.pieceJointes.map(a => `
-              <div class="attachment-chip">
-                ${a.dataUrl ? `<img src="${a.dataUrl}">` : '📄'}
+              <a class="attachment-chip" href="${a.url}" target="_blank" rel="noopener">
+                ${a.isImage ? `<img src="${a.url}">` : '📄'}
                 <span>${escapeHtml(a.name)}</span>
-              </div>
+              </a>
             `).join('')}
           </div>
         ` : '<p>Aucune pièce jointe.</p>'}
@@ -177,46 +185,46 @@
       <div class="field">
         <label>Propriétaire de la tâche</label>
         <select id="e-owner">
-          ${loadUsers().map(u => `<option value="${u.id}" ${u.id === item.proprietaire.id ? 'selected' : ''}>${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('')}
+          ${users.map(u => `<option value="${u.id}" ${u.id === item.proprietaire.id ? 'selected' : ''}>${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('')}
         </select>
       </div>
     `;
   }
 
-  function enterEdit() {
+  async function enterEdit() {
     editMode = true;
-    render();
+    await render();
     document.getElementById('e-date-depart').addEventListener('change', (e) => {
       document.getElementById('e-date-aircover').value = addDays(e.target.value, DELAI_JOURS);
     });
   }
 
-  function cancelEdit() {
+  async function cancelEdit() {
     editMode = false;
-    render();
+    await render();
   }
 
-  function saveEdit() {
-    const users = loadUsers();
+  async function saveEdit() {
     const owner = users.find(u => u.id === document.getElementById('e-owner').value);
-    item.titre = document.getElementById('e-titre').value.trim();
-    item.description = document.getElementById('e-description').value.trim();
-    item.details = document.getElementById('e-details').value.trim();
-    item.locataire = document.getElementById('e-locataire').value.trim();
-    item.prix = parseFloat(document.getElementById('e-prix').value);
-    item.dateDepart = document.getElementById('e-date-depart').value;
-    item.dateAircover = document.getElementById('e-date-aircover').value;
-    item.proprietaire = owner;
-    upsertItem(item);
+    const data = {
+      titre: document.getElementById('e-titre').value.trim(),
+      description: document.getElementById('e-description').value.trim(),
+      details: document.getElementById('e-details').value.trim(),
+      locataire: document.getElementById('e-locataire').value.trim(),
+      prix: parseFloat(document.getElementById('e-prix').value),
+      dateDepart: document.getElementById('e-date-depart').value,
+      dateAircover: document.getElementById('e-date-aircover').value,
+      proprietaire: owner,
+    };
+    await updateItem(item.id, data);
     editMode = false;
-    render();
+    await render();
     showToast('Modifications enregistrées.');
   }
 
-  function toggleTermine() {
-    item.statutTermine = !item.statutTermine;
-    upsertItem(item);
-    render();
+  async function toggleTermine() {
+    await updateItem(item.id, { statutTermine: !item.statutTermine });
+    await render();
     showToast(item.statutTermine ? 'AirCover marqué comme terminé.' : 'AirCover rouvert.');
   }
 
@@ -224,6 +232,14 @@
     const text = buildEmailContent(item);
     navigator.clipboard.writeText(text).then(() => showToast('Contenu copié dans le presse-papiers.'));
   }
+
+  window.enterEdit = enterEdit;
+  window.cancelEdit = cancelEdit;
+  window.saveEdit = saveEdit;
+  window.toggleTermine = toggleTermine;
+  window.copyEmail = copyEmail;
+
+  init();
 
   function showToast(msg) {
     const toast = document.getElementById('toast');

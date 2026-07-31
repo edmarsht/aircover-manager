@@ -1,198 +1,142 @@
-/* AirCover Manager — prototype front-end (localStorage only, pas de backend) */
+/* AirCover Manager — Firebase (Firestore + Storage) */
 
-const USERS_KEY = 'aircover_users_v1';
-const ITEMS_KEY = 'aircover_items_v1';
-const DELAI_JOURS = 14;
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClWz2WINX3tgbgivkhh3osJKDXmp8Df64",
+  authDomain: "aircover-manager.firebaseapp.com",
+  projectId: "aircover-manager",
+  storageBucket: "aircover-manager.firebasestorage.app",
+  messagingSenderId: "1044378959875",
+  appId: "1:1044378959875:web:16187e0c42899738920e36",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+export const db = getFirestore(firebaseApp);
+export const storage = getStorage(firebaseApp);
+
+export const DELAI_JOURS = 14;
 
 /* ---------- Utilitaires dates ---------- */
 
-function todayISO() {
+export function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function addDays(dateISO, days) {
+export function addDays(dateISO, days) {
   const d = new Date(dateISO + 'T00:00:00');
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
-function daysBetween(fromISO, toISO) {
+export function daysBetween(fromISO, toISO) {
   const a = new Date(fromISO + 'T00:00:00');
   const b = new Date(toISO + 'T00:00:00');
   return Math.round((b - a) / 86400000);
 }
 
-function formatDateFR(dateISO) {
+export function formatDateFR(dateISO) {
   if (!dateISO) return '—';
   const d = new Date(dateISO + 'T00:00:00');
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-function formatDateShort(dateISO) {
+export function formatDateShort(dateISO) {
   if (!dateISO) return '—';
   const d = new Date(dateISO + 'T00:00:00');
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function formatPrice(n) {
+export function formatPrice(n) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
 }
 
-function initials(name) {
+export function initials(name) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
-}
-
-function uid(prefix) {
-  return prefix + '_' + Math.random().toString(36).slice(2, 9);
 }
 
 /* ---------- Statut ---------- */
 
-function getStatus(item) {
+export function getStatus(item) {
   if (item.statutTermine) return { key: 'done', label: 'Terminé' };
   const diff = daysBetween(todayISO(), item.dateAircover);
-  if (diff < 0) return { key: 'late', label: 'En retard' };
+  if (diff < 0) return { key: 'done', label: 'Terminé' };
   if (diff === 0) return { key: 'today', label: "À faire aujourd'hui" };
   return { key: 'upcoming', label: `Dans ${diff} j` };
 }
 
-/* ---------- Stockage : utilisateurs (propriétaires de tâche) ---------- */
-
-function loadUsers() {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (raw) return JSON.parse(raw);
-  const seed = [
-    { id: uid('u'), nom: 'Edouard Toulet', email: 'edtoulet@gmail.com' },
-    { id: uid('u'), nom: 'Camille Martin', email: 'camille.martin@example.com' },
-  ];
-  saveUsers(seed);
-  return seed;
+/* Un AirCover non traité au-delà du jour J bascule automatiquement en "Terminé" :
+   passé ce délai, Airbnb ne permet plus de le déposer, donc le suivre comme "en retard" n'a plus d'utilité. */
+async function maybeAutoClose(item) {
+  if (!item.statutTermine && daysBetween(todayISO(), item.dateAircover) < 0) {
+    item.statutTermine = true;
+    await updateItem(item.id, { statutTermine: true });
+  }
+  return item;
 }
 
-function saveUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+/* ---------- Firestore : utilisateurs (propriétaires de tâche) ---------- */
+
+export async function loadUsers() {
+  const snap = await getDocs(collection(db, 'users'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-function addUser(nom, email) {
-  const users = loadUsers();
+export async function addUser(nom, email) {
+  const users = await loadUsers();
   const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (existing) return existing;
-  const user = { id: uid('u'), nom, email };
-  users.push(user);
-  saveUsers(users);
-  return user;
+  const docRef = await addDoc(collection(db, 'users'), { nom, email });
+  return { id: docRef.id, nom, email };
 }
 
-/* ---------- Stockage : aircovers ---------- */
+/* ---------- Firestore : aircovers ---------- */
 
-function loadItems() {
-  const raw = localStorage.getItem(ITEMS_KEY);
-  if (raw) return JSON.parse(raw);
-  const seeded = seedItems();
-  saveItems(seeded);
-  return seeded;
+export async function loadItems() {
+  const snap = await getDocs(collection(db, 'aircovers'));
+  const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  await Promise.all(items.map(maybeAutoClose));
+  return items;
 }
 
-function saveItems(items) {
-  localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
+export async function getItem(id) {
+  const snap = await getDoc(doc(db, 'aircovers', id));
+  if (!snap.exists()) return null;
+  return maybeAutoClose({ id: snap.id, ...snap.data() });
 }
 
-function getItem(id) {
-  return loadItems().find(i => i.id === id);
+export async function createItem(data) {
+  const docRef = await addDoc(collection(db, 'aircovers'), data);
+  return docRef.id;
 }
 
-function upsertItem(item) {
-  const items = loadItems();
-  const idx = items.findIndex(i => i.id === item.id);
-  if (idx >= 0) items[idx] = item; else items.unshift(item);
-  saveItems(items);
+export async function updateItem(id, data) {
+  await setDoc(doc(db, 'aircovers', id), data, { merge: true });
 }
 
-function deleteItem(id) {
-  saveItems(loadItems().filter(i => i.id !== id));
+export async function deleteItem(id) {
+  await deleteDoc(doc(db, 'aircovers', id));
 }
 
-/* ---------- Données de test ---------- */
+/* ---------- Storage : pièces jointes ---------- */
 
-function seedItems() {
-  const users = loadUsers();
-  const [edouard, camille] = users;
-  const today = todayISO();
-
-  return [
-    {
-      id: uid('ac'),
-      titre: 'Canapé taché par le locataire',
-      description: "Le locataire a laissé des taches de vin rouge sur le canapé du salon, visibles sur les photos jointes. Nettoyage professionnel nécessaire.",
-      details: "Le nettoyage a été fait par pressing local, facture jointe. Le tissu est un velours clair très sensible aux taches.",
-      prix: 180,
-      dateDepart: addDays(today, -14),
-      locataire: 'Marc Dubreuil',
-      dateAircover: today,
-      proprietaire: edouard,
-      pieceJointes: [
-        { name: 'photo-tache-canape.jpg' },
-        { name: 'facture-pressing.pdf' },
-      ],
-      statutTermine: false,
-      emailEnvoye: true,
-      emailEnvoyeLe: addDays(today, -14),
-      createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
-    },
-    {
-      id: uid('ac'),
-      titre: 'Télécommande climatisation perdue',
-      description: "La télécommande de la climatisation du séjour a disparu après le séjour. Introuvable malgré recherche complète de l'appartement.",
-      details: "Remplacement standard chez le fournisseur, référence modèle Daikin BRC1E63.",
-      prix: 65,
-      dateDepart: addDays(today, -20),
-      locataire: 'Sophie Renard',
-      dateAircover: addDays(today, -6),
-      proprietaire: edouard,
-      pieceJointes: [{ name: 'photo-clim.jpg' }],
-      statutTermine: true,
-      emailEnvoye: true,
-      emailEnvoyeLe: addDays(today, -20),
-      createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
-    },
-    {
-      id: uid('ac'),
-      titre: 'Rideau occultant chambre 2 déchiré',
-      description: "Le rideau occultant de la deuxième chambre a été déchiré sur toute sa longueur, probablement en le fermant trop brusquement.",
-      details: '',
-      prix: 45,
-      dateDepart: addDays(today, -8),
-      locataire: 'Julien Perrot',
-      dateAircover: addDays(today, 6),
-      proprietaire: camille,
-      pieceJointes: [],
-      statutTermine: false,
-      emailEnvoye: false,
-      emailEnvoyeLe: null,
-      createdAt: new Date(Date.now() - 8 * 86400000).toISOString(),
-    },
-    {
-      id: uid('ac'),
-      titre: 'Vaisselle manquante (4 verres, 1 assiette)',
-      description: "À l'état des lieux de sortie, il manque 4 verres à pied et une assiette du service principal.",
-      details: 'Service Ikea 365+, rachat facile en magasin, facture à venir.',
-      prix: 28,
-      dateDepart: addDays(today, -16),
-      locataire: 'Amandine Roy',
-      dateAircover: addDays(today, -2),
-      proprietaire: edouard,
-      pieceJointes: [{ name: 'etat-des-lieux-sortie.pdf' }],
-      statutTermine: false,
-      emailEnvoye: true,
-      emailEnvoyeLe: addDays(today, -16),
-      createdAt: new Date(Date.now() - 16 * 86400000).toISOString(),
-    },
-  ];
+export async function uploadAttachment(itemId, file) {
+  const path = `aircovers/${itemId}/${Date.now()}_${file.name}`;
+  const fileRef = ref(storage, path);
+  await uploadBytes(fileRef, file);
+  const url = await getDownloadURL(fileRef);
+  return { name: file.name, url, isImage: file.type.startsWith('image/'), path };
 }
 
 /* ---------- Contenu de l'email simulé ---------- */
 
-function buildEmailContent(item) {
+export function buildEmailContent(item) {
   const blocks = [];
   blocks.push(`À : ${item.proprietaire.email}`);
   blocks.push(`Objet : Rappel — AirCover à déposer aujourd'hui : ${item.titre}`);

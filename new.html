@@ -103,14 +103,22 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js"></script>
-<script>
-  let attachments = [];
+<script type="module">
+  import { loadUsers, addUser, addDays, DELAI_JOURS, todayISO, createItem, updateItem, uploadAttachment } from './app.js';
 
-  function populateOwners() {
+  let attachments = [];
+  let users = [];
+
+  async function populateOwners() {
     const select = document.getElementById('owner-select');
-    const users = loadUsers();
-    select.innerHTML = users.map(u => `<option value="${u.id}">${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('');
+    users = await loadUsers();
+    select.innerHTML = users.length
+      ? users.map(u => `<option value="${u.id}">${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('')
+      : '';
+    if (!users.length) {
+      document.getElementById('new-owner-box').classList.add('open');
+      showToast('Aucun utilisateur enregistré : ajoutez-en un ci-dessous.');
+    }
   }
 
   function escapeHtml(str) {
@@ -123,15 +131,15 @@
     document.getElementById('new-owner-box').classList.toggle('open');
   });
 
-  document.getElementById('save-new-owner').addEventListener('click', () => {
+  document.getElementById('save-new-owner').addEventListener('click', async () => {
     const nom = document.getElementById('new-owner-name').value.trim();
     const email = document.getElementById('new-owner-email').value.trim();
     if (!nom || !email) {
       showToast("Merci de renseigner un nom et un email pour le nouvel utilisateur.");
       return;
     }
-    const user = addUser(nom, email);
-    populateOwners();
+    const user = await addUser(nom, email);
+    await populateOwners();
     document.getElementById('owner-select').value = user.id;
     document.getElementById('new-owner-name').value = '';
     document.getElementById('new-owner-email').value = '';
@@ -149,17 +157,9 @@
   document.getElementById('attachments').addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        attachments.push({ name: file.name, dataUrl: reader.result });
-        renderAttachments();
-      };
-      if (file.type.startsWith('image/')) {
-        reader.readAsDataURL(file);
-      } else {
-        attachments.push({ name: file.name });
-        renderAttachments();
-      }
+      const isImage = file.type.startsWith('image/');
+      attachments.push({ file, name: file.name, previewUrl: isImage ? URL.createObjectURL(file) : null });
+      renderAttachments();
     });
     e.target.value = '';
   });
@@ -168,7 +168,7 @@
     const box = document.getElementById('attachment-list');
     box.innerHTML = attachments.map((a, idx) => `
       <div class="attachment-chip">
-        ${a.dataUrl ? `<img src="${a.dataUrl}">` : '📄'}
+        ${a.previewUrl ? `<img src="${a.previewUrl}">` : '📄'}
         <span>${escapeHtml(a.name)}</span>
         <span class="remove" data-idx="${idx}">✕</span>
       </div>
@@ -188,33 +188,51 @@
     setTimeout(() => toast.classList.remove('show'), 2600);
   }
 
-  document.getElementById('form').addEventListener('submit', (e) => {
+  document.getElementById('form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const users = loadUsers();
     const owner = users.find(u => u.id === document.getElementById('owner-select').value);
+    if (!owner) {
+      showToast("Merci de choisir ou d'ajouter un propriétaire de la tâche.");
+      return;
+    }
 
-    const dateDepart = document.getElementById('date-depart').value;
-    const dateAircover = document.getElementById('date-aircover').value;
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enregistrement…';
 
-    const item = {
-      id: uid('ac'),
-      titre: document.getElementById('titre').value.trim(),
-      description: document.getElementById('description').value.trim(),
-      details: document.getElementById('details').value.trim(),
-      prix: parseFloat(document.getElementById('prix').value),
-      dateDepart,
-      locataire: document.getElementById('locataire').value.trim(),
-      dateAircover,
-      proprietaire: owner,
-      pieceJointes: attachments,
-      statutTermine: false,
-      emailEnvoye: true,
-      emailEnvoyeLe: todayISO(),
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const dateDepart = document.getElementById('date-depart').value;
+      const dateAircover = document.getElementById('date-aircover').value;
 
-    upsertItem(item);
-    location.href = `detail.html?id=${item.id}&justCreated=1`;
+      const id = await createItem({
+        titre: document.getElementById('titre').value.trim(),
+        description: document.getElementById('description').value.trim(),
+        details: document.getElementById('details').value.trim(),
+        prix: parseFloat(document.getElementById('prix').value),
+        dateDepart,
+        locataire: document.getElementById('locataire').value.trim(),
+        dateAircover,
+        proprietaire: owner,
+        pieceJointes: [],
+        statutTermine: false,
+        emailEnvoye: true,
+        emailEnvoyeLe: todayISO(),
+        createdAt: new Date().toISOString(),
+      });
+
+      if (attachments.length) {
+        submitBtn.textContent = 'Envoi des pièces jointes…';
+        const pieceJointes = await Promise.all(attachments.map(a => uploadAttachment(id, a.file)));
+        await updateItem(id, { pieceJointes });
+      }
+
+      location.href = `detail.html?id=${id}&justCreated=1`;
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de l'enregistrement, réessayez.");
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Enregistrer et envoyer le récapitulatif';
+    }
   });
 
   populateOwners();
