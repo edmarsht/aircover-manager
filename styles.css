@@ -175,8 +175,18 @@ main {
 }
 
 .chip.has-today {
-  border-color: var(--red);
-  box-shadow: 0 0 0 1px var(--red);
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: neon-pulse-red 1.6s ease-in-out infinite;
+}
+
+@keyframes neon-pulse-red {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(255,56,92,0.7), 0 0 10px rgba(255,56,92,0.5), 0 0 18px rgba(255,56,92,0.3);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(255,56,92,1), 0 0 18px rgba(255,56,92,0.8), 0 0 30px rgba(255,56,92,0.5);
+  }
 }
 
 .list {
@@ -270,6 +280,21 @@ main {
 }
 
 .empty-state .big-emoji { font-size: 40px; margin-bottom: 10px; }
+.empty-state .empty-cat {
+  margin-bottom: 10px;
+  animation: neon-pulse-cat 1.6s ease-in-out infinite;
+}
+
+.empty-state .cat-body { fill: var(--accent); }
+
+@keyframes neon-pulse-cat {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(255,56,92,0.7)) drop-shadow(0 0 7px rgba(255,56,92,0.5)) drop-shadow(0 0 12px rgba(255,56,92,0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(255,56,92,1)) drop-shadow(0 0 12px rgba(255,56,92,0.8)) drop-shadow(0 0 20px rgba(255,56,92,0.5));
+  }
+}
 
 /* Form */
 .form-card {
