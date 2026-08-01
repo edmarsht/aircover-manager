@@ -23,6 +23,11 @@ export const storage = getStorage(firebaseApp);
 
 export const DELAI_JOURS = 14;
 
+/* Rend le site installable en PWA (icône d'accueil sur mobile). */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
 /* ---------- Utilitaires dates ---------- */
 
 export function todayISO() {
@@ -71,6 +76,12 @@ export function getStatus(item) {
   return { key: 'upcoming', label: `Dans ${diff} j` };
 }
 
+/* Clôturé sans qu'aucun des deux canaux de rappel n'ait confirmé un envoi
+   réussi : le pire scénario vu l'objectif de l'outil, à signaler clairement. */
+export function reminderFailed(item) {
+  return !!item.statutTermine && !item.reminderEnvoye && !item.smsEnvoye;
+}
+
 /* Un AirCover non traité au-delà du jour J bascule automatiquement en "Terminé" :
    passé ce délai, Airbnb ne permet plus de le déposer, donc le suivre comme "en retard" n'a plus d'utilité. */
 async function maybeAutoClose(item) {
@@ -110,6 +121,29 @@ export async function updateUser(id, data) {
 
 export async function deleteUser(id) {
   await deleteDoc(doc(db, 'users', id));
+}
+
+/* ---------- Firestore : appartements ---------- */
+
+export async function loadApartments() {
+  const snap = await getDocs(collection(db, 'apartments'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function addApartment(nom) {
+  const apartments = await loadApartments();
+  const existing = apartments.find(a => a.nom.toLowerCase() === nom.toLowerCase());
+  if (existing) return existing;
+  const docRef = await addDoc(collection(db, 'apartments'), { nom });
+  return { id: docRef.id, nom };
+}
+
+export async function updateApartment(id, data) {
+  await setDoc(doc(db, 'apartments', id), data, { merge: true });
+}
+
+export async function deleteApartment(id) {
+  await deleteDoc(doc(db, 'apartments', id));
 }
 
 /* ---------- Firestore : aircovers ---------- */

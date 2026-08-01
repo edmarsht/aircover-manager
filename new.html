@@ -6,6 +6,10 @@
 <title>AirCover Manager — Nouveau</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF385C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AirCover">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +18,7 @@
   <a class="brand" href="index.html"><span class="logo-dot">AC</span> AirCover Manager</a>
   <nav>
     <a href="index.html">Liste</a>
-    <a href="users.html" class="icon-link" title="Utilisateurs">⚙️</a>
+    <a href="users.html" class="icon-link" title="Paramètres">⚙️</a>
   </nav>
 </div>
 
@@ -32,28 +36,8 @@
       <h2>Propriétaire de la tâche</h2>
       <div class="field">
         <label for="owner-select">Qui doit exécuter l'AirCover ?</label>
-        <div class="owner-picker">
-          <select id="owner-select" required></select>
-          <button type="button" class="btn btn-secondary" id="toggle-new-owner">+ Nouvel utilisateur</button>
-        </div>
-        <div class="new-owner-box" id="new-owner-box">
-          <div class="grid-2">
-            <div class="field">
-              <label for="new-owner-name">Nom</label>
-              <input type="text" id="new-owner-name" placeholder="Ex : Marie Dupont">
-            </div>
-            <div class="field">
-              <label for="new-owner-email">Adresse email</label>
-              <input type="email" id="new-owner-email" placeholder="marie@example.com">
-            </div>
-          </div>
-          <div class="field">
-            <label for="new-owner-phone">Téléphone (optionnel, pour le SMS de rappel)</label>
-            <input type="tel" id="new-owner-phone" placeholder="06 12 34 56 78">
-          </div>
-          <div class="hint">Si l'email existe déjà, ça met simplement à jour le nom et le téléphone de cet utilisateur.</div>
-          <button type="button" class="btn btn-primary" id="save-new-owner">Ajouter / mettre à jour cet utilisateur</button>
-        </div>
+        <select id="owner-select" required></select>
+        <div class="hint">Pour ajouter ou modifier un utilisateur, va dans <a href="users.html">Paramètres</a>.</div>
       </div>
     </div>
 
@@ -82,8 +66,9 @@
       <h2>Séjour concerné</h2>
       <div class="grid-2">
         <div class="field">
-          <label for="appartement">Appartement concerné</label>
-          <input type="text" id="appartement" required placeholder="Ex : Appartement Bastille">
+          <label for="appartement-select">Appartement concerné</label>
+          <select id="appartement-select" required></select>
+          <div class="hint">Pour ajouter un appartement, va dans <a href="users.html">Paramètres</a>.</div>
         </div>
         <div class="field">
           <label for="locataire">Nom du locataire</label>
@@ -115,10 +100,11 @@
 <div class="toast" id="toast"></div>
 
 <script type="module">
-  import { loadUsers, addUser, addDays, DELAI_JOURS, todayISO, createItem, updateItem, uploadAttachment, openLightbox } from './app.js';
+  import { loadUsers, loadApartments, addDays, DELAI_JOURS, todayISO, createItem, updateItem, uploadAttachment, openLightbox } from './app.js';
 
   let attachments = [];
   let users = [];
+  let apartments = [];
 
   async function populateOwners() {
     const select = document.getElementById('owner-select');
@@ -127,8 +113,18 @@
       ? users.map(u => `<option value="${u.id}">${escapeHtml(u.nom)} (${escapeHtml(u.email)})</option>`).join('')
       : '';
     if (!users.length) {
-      document.getElementById('new-owner-box').classList.add('open');
-      showToast('Aucun utilisateur enregistré : ajoutez-en un ci-dessous.');
+      showToast('Aucun utilisateur enregistré : ajoutes-en un dans Paramètres.');
+    }
+  }
+
+  async function populateApartments() {
+    const select = document.getElementById('appartement-select');
+    apartments = await loadApartments();
+    select.innerHTML = apartments.length
+      ? apartments.map(a => `<option value="${escapeHtml(a.nom)}">${escapeHtml(a.nom)}</option>`).join('')
+      : '';
+    if (!apartments.length) {
+      showToast('Aucun appartement enregistré : ajoutes-en un dans Paramètres.');
     }
   }
 
@@ -137,28 +133,6 @@
     div.textContent = str;
     return div.innerHTML;
   }
-
-  document.getElementById('toggle-new-owner').addEventListener('click', () => {
-    document.getElementById('new-owner-box').classList.toggle('open');
-  });
-
-  document.getElementById('save-new-owner').addEventListener('click', async () => {
-    const nom = document.getElementById('new-owner-name').value.trim();
-    const email = document.getElementById('new-owner-email').value.trim();
-    const telephone = document.getElementById('new-owner-phone').value.trim();
-    if (!nom || !email) {
-      showToast("Merci de renseigner un nom et un email pour le nouvel utilisateur.");
-      return;
-    }
-    const user = await addUser(nom, email, telephone);
-    await populateOwners();
-    document.getElementById('owner-select').value = user.id;
-    document.getElementById('new-owner-name').value = '';
-    document.getElementById('new-owner-email').value = '';
-    document.getElementById('new-owner-phone').value = '';
-    document.getElementById('new-owner-box').classList.remove('open');
-    showToast(`Utilisateur "${nom}" ajouté / mis à jour.`);
-  });
 
   document.getElementById('date-depart').addEventListener('change', (e) => {
     const dateAircoverInput = document.getElementById('date-aircover');
@@ -213,7 +187,12 @@
     e.preventDefault();
     const owner = users.find(u => u.id === document.getElementById('owner-select').value);
     if (!owner) {
-      showToast("Merci de choisir ou d'ajouter un propriétaire de la tâche.");
+      showToast("Merci de choisir un propriétaire de la tâche.");
+      return;
+    }
+    const appartement = document.getElementById('appartement-select').value;
+    if (!appartement) {
+      showToast("Merci de choisir un appartement.");
       return;
     }
 
@@ -231,7 +210,7 @@
         details: document.getElementById('details').value.trim(),
         prix: parseFloat(document.getElementById('prix').value),
         dateDepart,
-        appartement: document.getElementById('appartement').value.trim(),
+        appartement,
         locataire: document.getElementById('locataire').value.trim(),
         dateAircover,
         proprietaire: owner,
@@ -262,6 +241,7 @@
   });
 
   populateOwners();
+  populateApartments();
 </script>
 </body>
 </html>

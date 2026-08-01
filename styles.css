@@ -161,6 +161,34 @@ main {
 }
 .btn-danger:hover { background: #f6d3ce; }
 
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dash-tile {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.dash-value {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.dash-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+.dash-tile.dash-today .dash-value { color: var(--accent); }
+
 .filters {
   display: flex;
   gap: 8px;
@@ -283,6 +311,7 @@ main {
 .badge-today { background: var(--orange-bg); color: var(--orange); }
 .badge-upcoming { background: var(--blue-bg); color: var(--blue); }
 .badge-done { background: var(--green-bg); color: var(--green); }
+.badge-alert { background: var(--red-bg); color: var(--red); }
 
 .empty-state {
   text-align: center;
@@ -382,25 +411,6 @@ input:focus, textarea:focus, select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-light);
 }
-
-.owner-picker {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.owner-picker select { flex: 1; }
-
-.new-owner-box {
-  display: none;
-  margin-top: 10px;
-  padding: 14px;
-  background: var(--bg);
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-}
-
-.new-owner-box.open { display: block; }
 
 .form-actions {
   display: flex;
@@ -649,6 +659,19 @@ input:focus, textarea:focus, select:focus {
   margin-bottom: 20px;
 }
 
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--red-bg);
+  color: var(--red);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
 .toast {
   position: fixed;
   bottom: 24px;
@@ -689,6 +712,11 @@ input:focus, textarea:focus, select:focus {
   .topbar .brand { font-size: 15px; gap: 6px; }
   .topbar .brand .logo-dot { width: 24px; height: 24px; font-size: 12px; }
   .topbar nav a { padding: 6px 10px; font-size: 13px; }
+
+  .dashboard { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .dash-tile { padding: 12px; }
+  .dash-value { font-size: 19px; }
+  .dash-label { font-size: 11px; }
 
   .list { gap: 6px; }
   .aircover-row {

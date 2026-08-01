@@ -6,6 +6,10 @@
 <title>AirCover Manager — Détail</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF385C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AirCover">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +18,7 @@
   <a class="brand" href="index.html"><span class="logo-dot">AC</span> AirCover Manager</a>
   <nav>
     <a href="index.html">Liste</a>
-    <a href="users.html" class="icon-link" title="Utilisateurs">⚙️</a>
+    <a href="users.html" class="icon-link" title="Paramètres">⚙️</a>
   </nav>
 </div>
 
@@ -28,9 +32,9 @@
 
 <script type="module">
   import {
-    getItem, updateItem, loadUsers, getStatus, buildEmailContent,
+    getItem, updateItem, loadUsers, loadApartments, getStatus, buildEmailContent,
     formatPrice, formatDateShort, initials, addDays, DELAI_JOURS,
-    uploadAttachment, openLightbox,
+    uploadAttachment, openLightbox, reminderFailed,
   } from './app.js';
 
   const params = new URLSearchParams(location.search);
@@ -39,6 +43,7 @@
   let editMode = false;
   let item = null;
   let users = [];
+  let apartments = [];
   let editNewAttachments = [];
 
   async function init() {
@@ -66,11 +71,15 @@
 
   async function render() {
     item = await getItem(itemId);
-    if (editMode) users = await loadUsers();
+    if (editMode) {
+      users = await loadUsers();
+      apartments = await loadApartments();
+    }
     const status = getStatus(item);
 
     document.getElementById('content').innerHTML = `
       ${justCreated ? `<div class="email-banner">✅ AirCover enregistré. Un email récapitulatif a été envoyé (simulé) à ${escapeHtml(item.proprietaire.email)}.</div>` : ''}
+      ${reminderFailed(item) ? `<div class="alert-banner">⚠️ Clôturé sans confirmation d'envoi : ni l'email ni le SMS n'ont abouti. Vérifie manuellement si le rappel est bien passé.</div>` : ''}
       ${item.reminderEnvoye
         ? `<div class="email-banner">✅ Rappel automatique envoyé le ${formatDateShort(item.reminderEnvoyeLe)} à ${escapeHtml(item.proprietaire.email)}.</div>`
         : (!item.statutTermine && status.key !== 'done' ? `<div class="reminder-banner">⏰ Rappel automatique prévu le ${formatDateShort(item.dateAircover)} (départ du locataire + ${DELAI_JOURS} jours) à ${escapeHtml(item.proprietaire.email)}.</div>` : '')}
@@ -180,7 +189,10 @@
       <div class="grid-2">
         <div class="field">
           <label>Appartement concerné</label>
-          <input type="text" id="e-appartement" value="${escapeHtml(item.appartement)}">
+          <select id="e-appartement">
+            ${apartments.some(a => a.nom === item.appartement) ? '' : `<option value="${escapeHtml(item.appartement)}" selected>${escapeHtml(item.appartement)} (ancien)</option>`}
+            ${apartments.map(a => `<option value="${escapeHtml(a.nom)}" ${a.nom === item.appartement ? 'selected' : ''}>${escapeHtml(a.nom)}</option>`).join('')}
+          </select>
         </div>
         <div class="field">
           <label>Nom du locataire</label>

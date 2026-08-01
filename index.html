@@ -16,6 +16,10 @@
 <meta name="twitter:image" content="https://edmarsht.github.io/aircover-manager/og-image.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF385C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AirCover">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -24,7 +28,7 @@
   <a class="brand" href="index.html"><span class="logo-dot">AC</span> AirCover Manager</a>
   <nav>
     <a href="index.html" class="active">Liste</a>
-    <a href="users.html" class="icon-link" title="Utilisateurs">⚙️</a>
+    <a href="users.html" class="icon-link" title="Paramètres">⚙️</a>
   </nav>
 </div>
 
@@ -36,6 +40,8 @@
     </div>
     <a href="new.html" class="btn btn-primary">+ Nouveau AirCover</a>
   </div>
+
+  <div class="dashboard" id="dashboard"></div>
 
   <div class="filters" id="filters">
     <button class="chip active" data-filter="all">Tous</button>
@@ -59,7 +65,7 @@
 </main>
 
 <script type="module">
-  import { loadItems, getStatus, formatPrice, formatDateShort } from './app.js';
+  import { loadItems, getStatus, formatPrice, formatDateShort, reminderFailed } from './app.js';
 
   let currentFilter = 'all';
   let allItems = [];
@@ -74,11 +80,38 @@
     render();
   }
 
+  function renderDashboard(items) {
+    const enAttente = items.filter(({ item }) => !item.statutTermine);
+    const montantEnAttente = enAttente.reduce((sum, { item }) => sum + item.prix, 0);
+    const dueToday = items.filter(({ status }) => status.key === 'today').length;
+    const termines = items.filter(({ item }) => item.statutTermine).length;
+
+    document.getElementById('dashboard').innerHTML = `
+      <div class="dash-tile">
+        <div class="dash-value">${enAttente.length}</div>
+        <div class="dash-label">En attente</div>
+      </div>
+      <div class="dash-tile">
+        <div class="dash-value">${formatPrice(montantEnAttente)}</div>
+        <div class="dash-label">Montant en attente</div>
+      </div>
+      <div class="dash-tile dash-today">
+        <div class="dash-value">${dueToday}</div>
+        <div class="dash-label">Dû aujourd'hui</div>
+      </div>
+      <div class="dash-tile">
+        <div class="dash-value">${termines}</div>
+        <div class="dash-label">Terminés</div>
+      </div>
+    `;
+  }
+
   function render() {
     const items = allItems
       .map(i => ({ item: i, status: getStatus(i) }))
       .sort((a, b) => new Date(a.item.dateAircover) - new Date(b.item.dateAircover));
 
+    renderDashboard(items);
     document.getElementById('chip-today').classList.toggle('has-today', items.some(x => x.status.key === 'today'));
 
     const filtered = currentFilter === 'all'
@@ -101,6 +134,7 @@
           <div class="title-line">
             <h3>${escapeHtml(item.titre)}</h3>
             ${statusBadge(status)}
+            ${reminderFailed(item) ? '<span class="badge badge-alert">⚠️ Rappel non envoyé</span>' : ''}
           </div>
           <div class="meta-line">
             <span>👤 ${escapeHtml(item.proprietaire.nom)}</span>

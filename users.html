@@ -3,9 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AirCover Manager — Utilisateurs</title>
+<title>AirCover Manager — Paramètres</title>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF385C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AirCover">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,20 +18,21 @@
   <a class="brand" href="index.html"><span class="logo-dot">AC</span> AirCover Manager</a>
   <nav>
     <a href="index.html">Liste</a>
-    <a href="users.html" class="icon-link active" title="Utilisateurs">⚙️</a>
+    <a href="users.html" class="icon-link active" title="Paramètres">⚙️</a>
   </nav>
 </div>
 
 <main>
   <div class="page-header">
     <div>
-      <h1>Utilisateurs</h1>
-      <p>Gère les propriétaires de tâche : ajoute, modifie ou supprime.</p>
+      <h1>Paramètres</h1>
+      <p>Gère les utilisateurs et les appartements proposés dans le formulaire.</p>
     </div>
   </div>
 
+  <h2>Utilisateurs</h2>
   <div class="card" style="padding:24px;margin-bottom:20px;">
-    <h2 style="margin-top:0;">Ajouter un utilisateur</h2>
+    <h3 style="margin-top:0;">Ajouter un utilisateur</h3>
     <div class="grid-2">
       <div class="field">
         <label for="new-nom">Nom</label>
@@ -47,18 +52,39 @@
 
   <div id="users-list"></div>
 
-  <div class="empty-state" id="empty" style="display:none">
+  <div class="empty-state" id="empty-users" style="display:none">
     <p>Aucun utilisateur pour le moment.</p>
+  </div>
+
+  <h2 style="margin-top:32px;">Appartements</h2>
+  <div class="card" style="padding:24px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">Ajouter un appartement</h3>
+    <div class="field">
+      <label for="new-apt-nom">Nom</label>
+      <input type="text" id="new-apt-nom" placeholder="Ex : Appartement Bastille">
+    </div>
+    <button class="btn btn-primary" id="add-apartment-btn">Ajouter cet appartement</button>
+  </div>
+
+  <div id="apartments-list"></div>
+
+  <div class="empty-state" id="empty-apartments" style="display:none">
+    <p>Aucun appartement pour le moment.</p>
   </div>
 </main>
 
 <div class="toast" id="toast"></div>
 
 <script type="module">
-  import { loadUsers, addUser, updateUser, deleteUser } from './app.js';
+  import {
+    loadUsers, addUser, updateUser, deleteUser,
+    loadApartments, addApartment, updateApartment, deleteApartment,
+  } from './app.js';
 
   let users = [];
-  let editingId = null;
+  let editingUserId = null;
+  let apartments = [];
+  let editingApartmentId = null;
 
   function escapeHtml(str) {
     const div = document.createElement('div');
@@ -66,15 +92,15 @@
     return div.innerHTML;
   }
 
-  async function loadAndRender() {
+  async function loadAndRenderUsers() {
     document.getElementById('users-list').innerHTML = '<p style="padding:16px 0;color:var(--ink-soft)">Chargement…</p>';
     users = await loadUsers();
-    render();
+    renderUsers();
   }
 
-  function render() {
+  function renderUsers() {
     const list = document.getElementById('users-list');
-    const empty = document.getElementById('empty');
+    const empty = document.getElementById('empty-users');
 
     if (!users.length) {
       list.innerHTML = '';
@@ -85,7 +111,7 @@
 
     list.innerHTML = users.map(u => `
       <div class="card" style="padding:18px 20px;margin-bottom:10px;">
-        ${editingId === u.id ? `
+        ${editingUserId === u.id ? `
           <div class="grid-2">
             <div class="field">
               <label>Nom</label>
@@ -128,11 +154,11 @@
     const { action, id } = btn.dataset;
 
     if (action === 'edit') {
-      editingId = id;
-      render();
+      editingUserId = id;
+      renderUsers();
     } else if (action === 'cancel') {
-      editingId = null;
-      render();
+      editingUserId = null;
+      renderUsers();
     } else if (action === 'save') {
       const nom = document.getElementById(`e-nom-${id}`).value.trim();
       const email = document.getElementById(`e-email-${id}`).value.trim();
@@ -142,14 +168,14 @@
         return;
       }
       await updateUser(id, { nom, email, telephone });
-      editingId = null;
-      await loadAndRender();
+      editingUserId = null;
+      await loadAndRenderUsers();
       showToast('Utilisateur mis à jour.');
     } else if (action === 'delete') {
       const user = users.find(u => u.id === id);
       if (!confirm(`Supprimer "${user.nom}" ? Les AirCovers déjà créés garderont son nom, mais il ne sera plus proposé pour les nouveaux.`)) return;
       await deleteUser(id);
-      await loadAndRender();
+      await loadAndRenderUsers();
       showToast('Utilisateur supprimé.');
     }
   });
@@ -166,8 +192,91 @@
     document.getElementById('new-nom').value = '';
     document.getElementById('new-email').value = '';
     document.getElementById('new-tel').value = '';
-    await loadAndRender();
+    await loadAndRenderUsers();
     showToast(`Utilisateur "${nom}" ajouté.`);
+  });
+
+  async function loadAndRenderApartments() {
+    document.getElementById('apartments-list').innerHTML = '<p style="padding:16px 0;color:var(--ink-soft)">Chargement…</p>';
+    apartments = await loadApartments();
+    renderApartments();
+  }
+
+  function renderApartments() {
+    const list = document.getElementById('apartments-list');
+    const empty = document.getElementById('empty-apartments');
+
+    if (!apartments.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = apartments.map(a => `
+      <div class="card" style="padding:18px 20px;margin-bottom:10px;">
+        ${editingApartmentId === a.id ? `
+          <div class="field">
+            <label>Nom</label>
+            <input type="text" id="e-apt-nom-${a.id}" value="${escapeHtml(a.nom)}">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-ghost" data-action="cancel" data-id="${a.id}">Annuler</button>
+            <button class="btn btn-primary" data-action="save" data-id="${a.id}">Enregistrer</button>
+          </div>
+        ` : `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="font-weight:700;font-size:15px;">${escapeHtml(a.nom)}</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary" data-action="edit" data-id="${a.id}">✏️ Modifier</button>
+              <button class="btn btn-ghost" data-action="delete" data-id="${a.id}">🗑️ Supprimer</button>
+            </div>
+          </div>
+        `}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('apartments-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+
+    if (action === 'edit') {
+      editingApartmentId = id;
+      renderApartments();
+    } else if (action === 'cancel') {
+      editingApartmentId = null;
+      renderApartments();
+    } else if (action === 'save') {
+      const nom = document.getElementById(`e-apt-nom-${id}`).value.trim();
+      if (!nom) {
+        showToast('Merci de renseigner un nom.');
+        return;
+      }
+      await updateApartment(id, { nom });
+      editingApartmentId = null;
+      await loadAndRenderApartments();
+      showToast('Appartement mis à jour.');
+    } else if (action === 'delete') {
+      const apartment = apartments.find(a => a.id === id);
+      if (!confirm(`Supprimer "${apartment.nom}" ? Les AirCovers déjà créés garderont ce nom, mais il ne sera plus proposé pour les nouveaux.`)) return;
+      await deleteApartment(id);
+      await loadAndRenderApartments();
+      showToast('Appartement supprimé.');
+    }
+  });
+
+  document.getElementById('add-apartment-btn').addEventListener('click', async () => {
+    const nom = document.getElementById('new-apt-nom').value.trim();
+    if (!nom) {
+      showToast('Merci de renseigner un nom.');
+      return;
+    }
+    await addApartment(nom);
+    document.getElementById('new-apt-nom').value = '';
+    await loadAndRenderApartments();
+    showToast(`Appartement "${nom}" ajouté.`);
   });
 
   function showToast(msg) {
@@ -177,7 +286,8 @@
     setTimeout(() => toast.classList.remove('show'), 2600);
   }
 
-  loadAndRender();
+  loadAndRenderUsers();
+  loadAndRenderApartments();
 </script>
 </body>
 </html>
