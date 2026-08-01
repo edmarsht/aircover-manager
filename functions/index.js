@@ -10,7 +10,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const CRON_SECRET = process.env.CRON_SECRET;
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_SENDER_ID = process.env.TWILIO_SENDER_ID;
+const TWILIO_MESSAGING_SERVICE_SID = process.env.TWILIO_MESSAGING_SERVICE_SID;
 const DELAI_JOURS = 14;
 
 function todayISO() {
@@ -57,18 +57,9 @@ function buildEmailContent(item) {
   return blocks.join('\n\n');
 }
 
-/* Tant qu'aucun domaine n'est vérifié sur Resend, le plan gratuit interdit
-   d'envoyer à une autre adresse que celle du compte Resend lui-même.
-   On route donc temporairement tous les rappels vers cette adresse — le
-   vrai destinataire prévu reste visible dans le corps de l'email.
-   À retirer une fois un domaine vérifié sur resend.com/domains. */
-const TEMP_RECIPIENT_OVERRIDE = 'contact@ec-immo.fr';
+const COPY_RECIPIENT = 'contact@ec-immo.fr';
 
 async function sendEmail(item) {
-  const content = item.proprietaire.email === TEMP_RECIPIENT_OVERRIDE
-    ? buildEmailContent(item)
-    : `[Destinataire réel prévu : ${item.proprietaire.email} — routé temporairement ici, domaine Resend non encore vérifié]\n\n${buildEmailContent(item)}`;
-
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -76,10 +67,11 @@ async function sendEmail(item) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'AirCover Manager <onboarding@resend.dev>',
-      to: TEMP_RECIPIENT_OVERRIDE,
+      from: 'AirCover Manager <aircover@ec-immo.fr>',
+      to: item.proprietaire.email,
+      cc: COPY_RECIPIENT,
       subject: `Rappel — AirCover à déposer aujourd'hui : ${item.titre}`,
-      text: content,
+      text: buildEmailContent(item),
     }),
   });
   if (!res.ok) {
@@ -103,7 +95,7 @@ async function sendSms(item) {
   const to = toE164France(item.proprietaire.telephone);
   const body = new URLSearchParams({
     To: to,
-    From: TWILIO_SENDER_ID,
+    MessagingServiceSid: TWILIO_MESSAGING_SERVICE_SID,
     Body: buildSmsContent(item),
   });
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
