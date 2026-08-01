@@ -34,7 +34,7 @@
   import {
     getItem, updateItem, loadUsers, loadApartments, getStatus, buildEmailContent,
     formatPrice, formatDateShort, initials, addDays, DELAI_JOURS,
-    uploadAttachment, openLightbox, reminderFailed,
+    uploadAttachment, openLightbox, reminderFailed, reminderFailures,
   } from './app.js';
 
   const params = new URLSearchParams(location.search);
@@ -79,7 +79,13 @@
 
     document.getElementById('content').innerHTML = `
       ${justCreated ? `<div class="email-banner">✅ AirCover enregistré. Un email récapitulatif a été envoyé (simulé) à ${escapeHtml(item.proprietaire.email)}.</div>` : ''}
-      ${reminderFailed(item) ? `<div class="alert-banner">⚠️ Clôturé sans confirmation d'envoi : ni l'email ni le SMS n'ont abouti. Vérifie manuellement si le rappel est bien passé.</div>` : ''}
+      ${reminderFailed(item) ? (() => {
+        const failures = reminderFailures(item);
+        const detail = failures.length === 2
+          ? "ni l'email ni le SMS n'ont abouti"
+          : failures[0] === 'email' ? "l'email n'a pas abouti" : "le SMS n'a pas abouti";
+        return `<div class="alert-banner">⚠️ Clôturé sans confirmation d'envoi : ${detail}. Vérifie manuellement si le rappel est bien passé.</div>`;
+      })() : ''}
       ${item.reminderEnvoye
         ? `<div class="email-banner">✅ Rappel automatique envoyé le ${formatDateShort(item.reminderEnvoyeLe)} à ${escapeHtml(item.proprietaire.email)}.</div>`
         : (!item.statutTermine && status.key !== 'done' ? `<div class="reminder-banner">⏰ Rappel automatique prévu le ${formatDateShort(item.dateAircover)} (départ du locataire + ${DELAI_JOURS} jours) à ${escapeHtml(item.proprietaire.email)}.</div>` : '')}

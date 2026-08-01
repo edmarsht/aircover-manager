@@ -76,10 +76,19 @@ export function getStatus(item) {
   return { key: 'upcoming', label: `Dans ${diff} j` };
 }
 
-/* Clôturé sans qu'aucun des deux canaux de rappel n'ait confirmé un envoi
-   réussi : le pire scénario vu l'objectif de l'outil, à signaler clairement. */
+/* Clôturé sans confirmation d'envoi sur un canal qui aurait dû fonctionner :
+   l'email est toujours tenté, le SMS seulement si un téléphone est renseigné
+   (sinon smsEnvoye reste à false sans que ce soit un échec — juste non applicable). */
+export function reminderFailures(item) {
+  if (!item.statutTermine) return [];
+  const failures = [];
+  if (!item.reminderEnvoye) failures.push('email');
+  if (item.proprietaire.telephone && !item.smsEnvoye) failures.push('sms');
+  return failures;
+}
+
 export function reminderFailed(item) {
-  return !!item.statutTermine && !item.reminderEnvoye && !item.smsEnvoye;
+  return reminderFailures(item).length > 0;
 }
 
 /* Un AirCover non traité au-delà du jour J bascule automatiquement en "Terminé" :

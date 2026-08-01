@@ -65,7 +65,7 @@
 </main>
 
 <script type="module">
-  import { loadItems, getStatus, formatPrice, formatDateShort, reminderFailed } from './app.js';
+  import { loadItems, getStatus, formatPrice, formatDateShort, reminderFailed, reminderFailures } from './app.js';
 
   let currentFilter = 'all';
   let allItems = [];
@@ -74,9 +74,13 @@
     return `<span class="badge badge-${status.key}">${status.label}</span>`;
   }
 
-  function alertSign() {
+  function alertSign(item) {
+    const failures = reminderFailures(item);
+    const label = failures.length === 2
+      ? "Ni l'email ni le SMS n'ont été envoyés"
+      : failures[0] === 'email' ? "L'email n'a pas été envoyé" : "Le SMS n'a pas été envoyé";
     return `
-      <svg class="alert-sign" width="20" height="19" viewBox="0 0 24 22" xmlns="http://www.w3.org/2000/svg" title="Ni l'email ni le SMS n'ont été envoyés">
+      <svg class="alert-sign" width="20" height="19" viewBox="0 0 24 22" xmlns="http://www.w3.org/2000/svg" title="${label}">
         <path d="M12 1 L23 20 L1 20 Z" fill="#FF2D4C"/>
         <text x="12" y="17" text-anchor="middle" font-size="13" font-weight="900" fill="#fff" font-family="Arial, sans-serif">!</text>
       </svg>
@@ -141,7 +145,7 @@
       <div class="card aircover-row" onclick="location.href='detail.html?id=${item.id}'">
         <div class="col-main">
           <div class="title-line">
-            ${reminderFailed(item) ? alertSign() : ''}
+            ${reminderFailed(item) ? alertSign(item) : ''}
             <h3>${escapeHtml(item.titre)}</h3>
             ${statusBadge(status)}
           </div>
