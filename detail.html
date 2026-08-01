@@ -134,7 +134,8 @@
           </div>
           <div class="side-row"><span class="k">Appartement</span><span class="v">${escapeHtml(item.appartement) || '—'}</span></div>
           <div class="side-row"><span class="k">Locataire</span><span class="v">${escapeHtml(item.locataire)}</span></div>
-          <div class="side-row"><span class="k">Prix</span><span class="v">${formatPrice(item.prix)}</span></div>
+          <div class="side-row"><span class="k">Prix demandé</span><span class="v">${formatPrice(item.prix)}</span></div>
+          <div class="side-row"><span class="k">Montant perçu</span><span class="v">${item.montantPercu != null ? formatPrice(item.montantPercu) : '— pas encore renseigné'}</span></div>
           <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
           <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
           <div class="side-row"><span class="k">Email envoyé</span><span class="v">${item.emailEnvoye ? '✅ ' + formatDateShort(item.emailEnvoyeLe) : '— pas encore'}</span></div>
@@ -207,6 +208,10 @@
         <div class="field">
           <label>Prix demandé (€)</label>
           <input type="number" id="e-prix" min="0" step="0.01" value="${item.prix}">
+        </div>
+        <div class="field">
+          <label>Montant réellement perçu (€, optionnel)</label>
+          <input type="number" id="e-montant-percu" min="0" step="0.01" value="${item.montantPercu != null ? item.montantPercu : ''}" placeholder="Ex : 100">
         </div>
         <div class="field">
           <label>Date de départ du locataire</label>
@@ -283,6 +288,7 @@
       appartement: document.getElementById('e-appartement').value.trim(),
       locataire: document.getElementById('e-locataire').value.trim(),
       prix: parseFloat(document.getElementById('e-prix').value),
+      montantPercu: document.getElementById('e-montant-percu').value === '' ? null : parseFloat(document.getElementById('e-montant-percu').value),
       dateDepart: document.getElementById('e-date-depart').value,
       dateAircover: document.getElementById('e-date-aircover').value,
       proprietaire: owner,

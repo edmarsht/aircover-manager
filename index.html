@@ -96,8 +96,8 @@
   function renderDashboard(items) {
     const enAttente = items.filter(({ item }) => !item.statutTermine);
     const montantEnAttente = enAttente.reduce((sum, { item }) => sum + item.prix, 0);
-    const dueToday = items.filter(({ status }) => status.key === 'today').length;
-    const termines = items.filter(({ item }) => item.statutTermine).length;
+    const terminesItems = items.filter(({ item }) => item.statutTermine);
+    const montantPercu = terminesItems.reduce((sum, { item }) => sum + (item.montantPercu || 0), 0);
 
     document.getElementById('dashboard').innerHTML = `
       <div class="dash-tile">
@@ -108,12 +108,12 @@
         <div class="dash-value">${formatPrice(montantEnAttente)}</div>
         <div class="dash-label">Montant en attente</div>
       </div>
-      <div class="dash-tile dash-today">
-        <div class="dash-value">${dueToday}</div>
-        <div class="dash-label">Dû aujourd'hui</div>
+      <div class="dash-tile dash-percu">
+        <div class="dash-value">${formatPrice(montantPercu)}</div>
+        <div class="dash-label">Perçu</div>
       </div>
       <div class="dash-tile">
-        <div class="dash-value">${termines}</div>
+        <div class="dash-value">${terminesItems.length}</div>
         <div class="dash-label">Terminés</div>
       </div>
     `;
