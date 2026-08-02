@@ -30,14 +30,24 @@ if ('serviceWorker' in navigator) {
 
 /* ---------- Utilitaires dates ---------- */
 
+/* Formate une Date en "YYYY-MM-DD" à partir de ses composantes locales.
+   Ne surtout pas utiliser toISOString() ici : elle convertit en UTC, ce qui
+   décale la date d'un jour dans les fuseaux en avance sur UTC (ex: Paris l'été). */
+function toLocalISODate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalISODate(new Date());
 }
 
 export function addDays(dateISO, days) {
   const d = new Date(dateISO + 'T00:00:00');
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return toLocalISODate(d);
 }
 
 export function daysBetween(fromISO, toISO) {
