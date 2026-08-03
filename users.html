@@ -19,7 +19,6 @@
   <nav>
     <a href="index.html">Liste</a>
     <a href="users.html" class="icon-link active" title="Paramètres">⚙️</a>
-    <a href="#" class="icon-link" id="logout-link" title="Déconnexion">🚪</a>
   </nav>
 </div>
 
@@ -105,8 +104,6 @@
     loadApartments, addApartment, updateApartment, deleteApartment,
     requireAuth, logout, createInvite, loadReceivedInvites, loadSentInvites, acceptInvite, declineInvite,
   } from './app.js';
-
-  document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); logout(); });
 
   let users = [];
   let editingUserId = null;

@@ -19,7 +19,6 @@
   <nav>
     <a href="index.html">Liste</a>
     <a href="users.html" class="icon-link" title="Paramètres">⚙️</a>
-    <a href="#" class="icon-link" id="logout-link" title="Déconnexion">🚪</a>
   </nav>
 </div>
 
@@ -101,9 +100,7 @@
 <div class="toast" id="toast"></div>
 
 <script type="module">
-  import { loadUsers, loadApartments, addDays, DELAI_JOURS, todayISO, createItem, updateItem, uploadAttachment, openLightbox, requireAuth, logout } from './app.js';
-
-  document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); logout(); });
+  import { loadUsers, loadApartments, addDays, DELAI_JOURS, todayISO, createItem, updateItem, uploadAttachment, openLightbox, requireAuth } from './app.js';
 
   let attachments = [];
   let users = [];

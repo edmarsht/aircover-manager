@@ -19,7 +19,6 @@
   <nav>
     <a href="index.html">Liste</a>
     <a href="users.html" class="icon-link" title="Paramètres">⚙️</a>
-    <a href="#" class="icon-link" id="logout-link" title="Déconnexion">🚪</a>
   </nav>
 </div>
 
@@ -36,10 +35,8 @@
     getItem, updateItem, loadUsers, loadApartments, getStatus, buildEmailContent,
     formatPrice, formatDateShort, initials, addDays, todayISO, DELAI_JOURS,
     uploadAttachment, openLightbox, reminderFailed, reminderFailures, markAircoverFait,
-    requireAuth, logout,
+    requireAuth,
   } from './app.js';
-
-  document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); logout(); });
 
   const params = new URLSearchParams(location.search);
   const itemId = params.get('id');
