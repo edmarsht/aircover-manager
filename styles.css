@@ -180,6 +180,13 @@ main {
   font-size: 13px;
 }
 
+.montant-percu-form input:disabled,
+.montant-percu-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg);
+}
+
 .callout-airbnb {
   display: flex;
   align-items: center;
@@ -450,7 +457,7 @@ main {
   color: var(--ink);
 }
 
-.field .hint {
+.field .hint, .hint {
   font-size: 12px;
   color: var(--ink-soft);
   margin-top: 5px;

@@ -33,7 +33,7 @@
 <script type="module">
   import {
     getItem, updateItem, loadUsers, loadApartments, getStatus, buildEmailContent,
-    formatPrice, formatDateShort, initials, addDays, DELAI_JOURS,
+    formatPrice, formatDateShort, initials, addDays, todayISO, DELAI_JOURS,
     uploadAttachment, openLightbox, reminderFailed, reminderFailures, markAircoverFait,
   } from './app.js';
 
@@ -67,6 +67,13 @@
 
   function statusBadge(status) {
     return `<span class="badge badge-${status.key}">${status.label}</span>`;
+  }
+
+  /* Airbnb ne répond jamais avant le 15ème jour après le départ du locataire
+     (le 14ème jour est juste la date limite de dépôt) : inutile de proposer
+     la saisie du montant perçu avant, on n'a simplement pas encore la réponse. */
+  function montantPercuLocked(item) {
+    return todayISO() < addDays(item.dateDepart, 15);
   }
 
   async function render() {
@@ -141,13 +148,21 @@
             <span class="k">Montant perçu</span>
             ${item.montantPercu != null
               ? `<span class="v">${formatPrice(item.montantPercu)}</span>`
-              : (!item.statutTermine ? `
+              : (!item.statutTermine ? (montantPercuLocked(item) ? `
+                <span class="v montant-percu-form">
+                  <input type="number" disabled placeholder="€">
+                  <button type="button" class="btn btn-secondary btn-sm" disabled>Valider</button>
+                </span>
+              ` : `
                 <span class="v montant-percu-form">
                   <input type="number" id="montant-percu-input" min="0" step="0.01" placeholder="€">
                   <button type="button" class="btn btn-primary btn-sm" onclick="validerMontantPercu()">Valider</button>
                 </span>
-              ` : `<span class="v">— pas encore renseigné</span>`)}
+              `) : `<span class="v">— pas encore renseigné</span>`)}
           </div>
+          ${(item.montantPercu == null && !item.statutTermine && montantPercuLocked(item))
+            ? `<div class="hint" style="padding:8px 0 0;">Disponible à partir du ${formatDateShort(addDays(item.dateDepart, 15))} — Airbnb ne répond pas avant.</div>`
+            : ''}
           <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
           <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
           <div class="side-row"><span class="k">Email envoyé</span><span class="v">${item.emailEnvoye ? '✅ ' + formatDateShort(item.emailEnvoyeLe) : '— pas encore'}</span></div>
@@ -223,7 +238,8 @@
         </div>
         <div class="field">
           <label>Montant réellement perçu (€, optionnel)</label>
-          <input type="number" id="e-montant-percu" min="0" step="0.01" value="${item.montantPercu != null ? item.montantPercu : ''}" placeholder="Ex : 100">
+          <input type="number" id="e-montant-percu" min="0" step="0.01" value="${item.montantPercu != null ? item.montantPercu : ''}" placeholder="Ex : 100" ${item.montantPercu == null && montantPercuLocked(item) ? 'disabled' : ''}>
+          ${item.montantPercu == null && montantPercuLocked(item) ? `<div class="hint">Disponible à partir du ${formatDateShort(addDays(item.dateDepart, 15))} — Airbnb ne répond pas avant.</div>` : ''}
         </div>
         <div class="field">
           <label>Date de départ du locataire</label>
@@ -297,6 +313,7 @@
   }
 
   async function validerMontantPercu() {
+    if (montantPercuLocked(item)) return;
     const input = document.getElementById('montant-percu-input');
     const val = parseFloat(input.value);
     if (isNaN(val) || val < 0) {
