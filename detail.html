@@ -34,7 +34,7 @@
   import {
     getItem, updateItem, loadUsers, loadApartments, getStatus, buildEmailContent,
     formatPrice, formatDateShort, initials, addDays, DELAI_JOURS,
-    uploadAttachment, openLightbox, reminderFailed, reminderFailures,
+    uploadAttachment, openLightbox, reminderFailed, reminderFailures, markAircoverFait,
   } from './app.js';
 
   const params = new URLSearchParams(location.search);
@@ -99,6 +99,7 @@
         </div>
         <div style="display:flex;gap:8px;">
           ${!editMode ? `
+            ${status.key !== 'done' && status.key !== 'waiting' ? `<button class="btn btn-secondary" onclick="markFait(event)">✅ Marquer fait</button>` : ''}
             <button class="btn btn-primary" onclick="enterEdit()">✏️ Modifier</button>
           ` : `
             <button class="btn btn-ghost" onclick="cancelEdit()">Annuler</button>
@@ -135,6 +136,7 @@
           <div class="side-row"><span class="k">Appartement</span><span class="v">${escapeHtml(item.appartement) || '—'}</span></div>
           <div class="side-row"><span class="k">Locataire</span><span class="v">${escapeHtml(item.locataire)}</span></div>
           <div class="side-row"><span class="k">Prix demandé</span><span class="v">${formatPrice(item.prix)}</span></div>
+          <div class="side-row"><span class="k">AirCover fait</span><span class="v">${item.aircoverFait ? '✅ ' + formatDateShort(item.aircoverFaitLe) : '— pas encore'}</span></div>
           <div class="side-row"><span class="k">Montant perçu</span><span class="v">${item.montantPercu != null ? formatPrice(item.montantPercu) : '— pas encore renseigné'}</span></div>
           <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
           <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
@@ -275,6 +277,15 @@
     await render();
   }
 
+  async function markFait(e) {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = '…';
+    await markAircoverFait(item.id);
+    await render();
+    showToast('AirCover marqué comme fait — en attente du versement.');
+  }
+
   async function saveEdit(e) {
     const btn = e.target;
     btn.disabled = true;
@@ -293,6 +304,9 @@
       dateAircover: document.getElementById('e-date-aircover').value,
       proprietaire: owner,
     };
+    if (data.montantPercu != null) {
+      data.statutTermine = true;
+    }
     if (editNewAttachments.length) {
       const uploaded = await Promise.all(editNewAttachments.map(a => uploadAttachment(item.id, a.file)));
       data.pieceJointes = [...item.pieceJointes, ...uploaded];
@@ -313,6 +327,7 @@
   window.cancelEdit = cancelEdit;
   window.saveEdit = saveEdit;
   window.copyEmail = copyEmail;
+  window.markFait = markFait;
 
   document.getElementById('content').addEventListener('click', (e) => {
     const removeBtn = e.target.closest('.remove[data-remove-idx]');

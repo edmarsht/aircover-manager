@@ -80,10 +80,17 @@ export function initials(name) {
 
 export function getStatus(item) {
   if (item.statutTermine) return { key: 'done', label: 'Terminé' };
+  if (item.aircoverFait) return { key: 'waiting', label: 'En attente' };
   const diff = daysBetween(todayISO(), item.dateAircover);
   if (diff < 0) return { key: 'done', label: 'Terminé' };
   if (diff === 0) return { key: 'today', label: "À faire aujourd'hui" };
   return { key: 'upcoming', label: `Dans ${diff} j` };
+}
+
+/* Marque l'AirCover comme déposé sur Airbnb : passe en "En attente" du versement
+   jusqu'à ce que le montant perçu soit renseigné (voir saveEdit dans detail.html). */
+export async function markAircoverFait(id) {
+  await updateItem(id, { aircoverFait: true, aircoverFaitLe: todayISO() });
 }
 
 /* Clôturé sans confirmation d'envoi sur un canal qui aurait dû fonctionner :

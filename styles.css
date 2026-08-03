@@ -17,6 +17,8 @@
   --red-bg: #FCE8E6;
   --blue: #1D5FA8;
   --blue-bg: #E8F1FC;
+  --purple: #6B3FA0;
+  --purple-bg: #F1E9FA;
 }
 
 * { box-sizing: border-box; }
@@ -355,7 +357,17 @@ main {
 
 .badge-today { background: var(--orange-bg); color: var(--orange); }
 .badge-upcoming { background: var(--blue-bg); color: var(--blue); }
+.badge-waiting { background: var(--purple-bg); color: var(--purple); }
 .badge-done { background: var(--green-bg); color: var(--green); }
+
+.col-action {
+  flex-shrink: 0;
+}
+
+.col-action .btn-fait {
+  padding: 7px 12px;
+  font-size: 13px;
+}
 
 .alert-sign {
   flex-shrink: 0;
