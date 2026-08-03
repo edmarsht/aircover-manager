@@ -27,12 +27,18 @@
       </div>
       <div class="field">
         <label for="password">Mot de passe</label>
-        <input type="password" id="password" required autocomplete="new-password" minlength="6">
+        <div class="password-field">
+          <input type="password" id="password" required autocomplete="new-password" minlength="6">
+          <button type="button" class="password-toggle" data-target="password" aria-label="Afficher le mot de passe"></button>
+        </div>
         <div class="hint">6 caractères minimum.</div>
       </div>
       <div class="field">
         <label for="password2">Confirmer le mot de passe</label>
-        <input type="password" id="password2" required autocomplete="new-password">
+        <div class="password-field">
+          <input type="password" id="password2" required autocomplete="new-password">
+          <button type="button" class="password-toggle" data-target="password2" aria-label="Afficher le mot de passe"></button>
+        </div>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Créer mon compte</button>
     </form>
@@ -62,6 +68,20 @@
     errorBox.classList.add('show');
   }
 
+  const EYE_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+  document.querySelectorAll('.password-toggle').forEach(btn => {
+    btn.innerHTML = EYE_ICON;
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.innerHTML = show ? EYE_OFF_ICON : EYE_ICON;
+      btn.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+    });
+  });
+
   document.getElementById('form').addEventListener('submit', async (e) => {
     e.preventDefault();
     errorBox.classList.remove('show');
@@ -75,8 +95,9 @@
     }
 
     const btn = e.target.querySelector('button[type="submit"]');
+    const originalLabel = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Création…';
+    btn.innerHTML = '<span class="spinner"></span> Création…';
     signingUp = true;
     try {
       await signup(email, password);
@@ -84,13 +105,14 @@
     } catch (err) {
       signingUp = false;
       btn.disabled = false;
-      btn.textContent = 'Créer mon compte';
+      btn.textContent = originalLabel;
       const messages = {
         'auth/email-already-in-use': 'Un compte existe déjà avec cet email.',
         'auth/weak-password': 'Mot de passe trop court (6 caractères minimum).',
         'auth/invalid-email': 'Adresse email invalide.',
+        'auth/configuration-not-found': "La connexion par email n'est pas encore activée sur le projet Firebase.",
       };
-      showError(messages[err.code] || 'Erreur lors de la création du compte, réessaye.');
+      showError(messages[err.code] || `Erreur lors de la création du compte, réessaye. (${err.code || err.message})`);
     }
   });
 </script>

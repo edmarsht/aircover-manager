@@ -30,27 +30,15 @@ export const DELAI_JOURS = 14;
 
 /* ---------- Authentification ---------- */
 
-/* Attribue les documents créés avant l'ajout de l'auth (sans ownerUid) au premier
-   compte qui se connecte, pour ne perdre aucune donnée existante. Ne fait rien une
-   fois la migration effectuée (idempotent). */
-async function ensureOwnership(uid) {
-  for (const col of ['aircovers', 'apartments', 'users']) {
-    const snap = await getDocs(collection(db, col));
-    const toMigrate = snap.docs.filter(d => !d.data().ownerUid);
-    await Promise.all(toMigrate.map(d => setDoc(doc(db, col, d.id), { ownerUid: uid }, { merge: true })));
-  }
-}
-
 /* Résout la promesse avec l'utilisateur connecté, ou redirige vers login.html sinon.
    À appeler en tout début de script sur chaque page protégée. */
 export function requireAuth() {
   return new Promise((resolve) => {
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, (user) => {
       if (!user) {
         location.href = 'login.html';
         return;
       }
-      await ensureOwnership(user.uid);
       resolve(user);
     });
   });
