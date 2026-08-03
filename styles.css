@@ -161,6 +161,51 @@ main {
 }
 .btn-danger:hover { background: #f6d3ce; }
 
+.callout-airbnb {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.callout-airbnb:hover {
+  border-color: #d2d2d2;
+  border-left-color: var(--accent-dark);
+}
+
+.callout-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.callout-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.callout-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.callout-sub {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+.callout-arrow {
+  font-size: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 .dashboard {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
