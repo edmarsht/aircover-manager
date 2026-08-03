@@ -104,19 +104,22 @@
   }
 
   function renderDashboard(items) {
-    const enAttente = items.filter(({ item }) => !item.statutTermine);
-    const montantEnAttente = enAttente.reduce((sum, { item }) => sum + item.prix, 0);
+    const ouverts = items.filter(({ item }) => !item.statutTermine);
+    const aDemander = ouverts.filter(({ item }) => !item.aircoverFait);
+    const enAttenteVersement = ouverts.filter(({ item }) => item.aircoverFait);
+    const montantADemander = aDemander.reduce((sum, { item }) => sum + item.prix, 0);
+    const montantEnAttente = enAttenteVersement.reduce((sum, { item }) => sum + item.prix, 0);
     const terminesItems = items.filter(({ item }) => item.statutTermine);
     const montantPercu = terminesItems.reduce((sum, { item }) => sum + (item.montantPercu || 0), 0);
 
     document.getElementById('dashboard').innerHTML = `
       <div class="dash-tile">
-        <div class="dash-value">${enAttente.length}</div>
-        <div class="dash-label">En attente</div>
+        <div class="dash-value">${formatPrice(montantADemander)}</div>
+        <div class="dash-label">À demander (${aDemander.length})</div>
       </div>
       <div class="dash-tile">
         <div class="dash-value">${formatPrice(montantEnAttente)}</div>
-        <div class="dash-label">Montant en attente</div>
+        <div class="dash-label">En attente de versement (${enAttenteVersement.length})</div>
       </div>
       <div class="dash-tile dash-percu">
         <div class="dash-value">${formatPrice(montantPercu)}</div>
