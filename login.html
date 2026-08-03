@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirCover Manager — Connexion</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FF385C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AirCover">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-brand"><span class="logo-dot">AC</span> AirCover Manager</div>
+
+    <div class="auth-error" id="error"></div>
+
+    <form id="form">
+      <div class="field">
+        <label for="email">Adresse email</label>
+        <input type="email" id="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Se connecter</button>
+    </form>
+
+    <div class="auth-footer"><a href="#" id="forgot-link">Mot de passe oublié ?</a></div>
+    <div class="auth-footer">Pas encore de compte ? <a href="signup.html">Créer un compte</a></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { login, resetPassword, auth } from './app.js';
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) location.href = 'index.html';
+  });
+
+  const errorBox = document.getElementById('error');
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.classList.add('show');
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  document.getElementById('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBox.classList.remove('show');
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Connexion…';
+    try {
+      await login(email, password);
+      location.href = 'index.html';
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Se connecter';
+      showError(['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found'].includes(err.code)
+        ? 'Email ou mot de passe incorrect.'
+        : 'Erreur de connexion, réessaye.');
+    }
+  });
+
+  document.getElementById('forgot-link').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('email').value;
+    if (!email) {
+      showError('Renseigne ton email ci-dessus puis reclique sur "Mot de passe oublié".');
+      return;
+    }
+    try {
+      await resetPassword(email);
+      errorBox.classList.remove('show');
+      showToast('Email de réinitialisation envoyé à ' + email + '.');
+    } catch (err) {
+      showError("Impossible d'envoyer l'email de réinitialisation.");
+    }
+  });
+</script>
+</body>
+</html>

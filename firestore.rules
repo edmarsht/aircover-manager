@@ -1,0 +1,55 @@
+rules_version = '2';
+
+/* Règles de sécurité Firestore — AirCover Manager.
+   À coller manuellement dans Firebase Console > Firestore Database > Règles > Publier
+   (pas de CLI Firebase installée dans ce repo).
+
+   IMPORTANT : à publier seulement APRÈS s'être connecté une première fois avec le
+   compte principal (la migration automatique `ensureOwnership` dans app.js a besoin
+   des règles ouvertes par défaut pour attribuer les anciens documents sans ownerUid).
+   Publier ces règles avant cette première connexion rendrait les anciennes données
+   inaccessibles. */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    /* Deux comptes sont liés si l'un des deux a l'autre dans sa liste de
+       collaborateurs — le lien créé à l'acceptation d'une invitation est donc
+       symétrique même s'il n'écrit que sur le compte de l'utilisateur qui accepte. */
+    function linked(a, b) {
+      return a in get(/databases/$(database)/documents/accounts/$(b)).data.collaboratorUids
+          || b in get(/databases/$(database)/documents/accounts/$(a)).data.collaboratorUids;
+    }
+
+    function canAccess(ownerUid) {
+      return signedIn() && (request.auth.uid == ownerUid || linked(request.auth.uid, ownerUid));
+    }
+
+    match /accounts/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /invites/{id} {
+      allow create: if signedIn() && request.auth.token.email == request.resource.data.fromEmail;
+      allow read, update: if signedIn() && request.auth.token.email in [resource.data.fromEmail, resource.data.toEmail];
+    }
+
+    match /aircovers/{id} {
+      allow read, update, delete: if canAccess(resource.data.ownerUid);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /apartments/{id} {
+      allow read, update, delete: if canAccess(resource.data.ownerUid);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /users/{id} {
+      allow read, update, delete: if canAccess(resource.data.ownerUid);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+    }
+  }
+}

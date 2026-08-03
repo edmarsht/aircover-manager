@@ -29,6 +29,7 @@
   <nav>
     <a href="index.html" class="active">Liste</a>
     <a href="users.html" class="icon-link" title="Paramètres">⚙️</a>
+    <a href="#" class="icon-link" id="logout-link" title="Déconnexion">🚪</a>
   </nav>
 </div>
 
@@ -74,7 +75,9 @@
 </main>
 
 <script type="module">
-  import { loadItems, getStatus, formatPrice, formatDateShort, reminderFailed, reminderFailures } from './app.js';
+  import { loadItems, getStatus, formatPrice, formatDateShort, reminderFailed, reminderFailures, requireAuth, logout } from './app.js';
+
+  document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); logout(); });
 
   let currentFilter = 'all';
   let allItems = [];
@@ -194,7 +197,7 @@
     render();
   });
 
-  loadAndRender();
+  requireAuth().then(loadAndRender);
 </script>
 </body>
 </html>

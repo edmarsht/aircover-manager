@@ -2,11 +2,15 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc,
+  getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, deleteDoc, query, where,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage, ref, uploadBytes, getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+import {
+  getAuth, onAuthStateChanged, signOut,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyClWz2WINX3tgbgivkhh3osJKDXmp8Df64",
@@ -20,8 +24,117 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 export const db = getFirestore(firebaseApp);
 export const storage = getStorage(firebaseApp);
+export const auth = getAuth(firebaseApp);
 
 export const DELAI_JOURS = 14;
+
+/* ---------- Authentification ---------- */
+
+/* Attribue les documents créés avant l'ajout de l'auth (sans ownerUid) au premier
+   compte qui se connecte, pour ne perdre aucune donnée existante. Ne fait rien une
+   fois la migration effectuée (idempotent). */
+async function ensureOwnership(uid) {
+  for (const col of ['aircovers', 'apartments', 'users']) {
+    const snap = await getDocs(collection(db, col));
+    const toMigrate = snap.docs.filter(d => !d.data().ownerUid);
+    await Promise.all(toMigrate.map(d => setDoc(doc(db, col, d.id), { ownerUid: uid }, { merge: true })));
+  }
+}
+
+/* Résout la promesse avec l'utilisateur connecté, ou redirige vers login.html sinon.
+   À appeler en tout début de script sur chaque page protégée. */
+export function requireAuth() {
+  return new Promise((resolve) => {
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        location.href = 'login.html';
+        return;
+      }
+      await ensureOwnership(user.uid);
+      resolve(user);
+    });
+  });
+}
+
+export async function logout() {
+  await signOut(auth);
+  location.href = 'login.html';
+}
+
+export async function signup(email, password) {
+  const cleanEmail = email.trim().toLowerCase();
+  const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+  await setDoc(doc(db, 'accounts', cred.user.uid), { email: cleanEmail, collaboratorUids: [] });
+  return cred.user;
+}
+
+export async function login(email, password) {
+  const cred = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+  return cred.user;
+}
+
+export async function resetPassword(email) {
+  await sendPasswordResetEmail(auth, email.trim().toLowerCase());
+}
+
+async function getAccount(uid) {
+  const snap = await getDoc(doc(db, 'accounts', uid));
+  return snap.exists() ? snap.data() : { email: '', collaboratorUids: [] };
+}
+
+/* uid du compte courant + ses collaborateurs : sert à filtrer les listes (aircovers,
+   appartements, contacts) pour n'afficher que l'espace privé + les espaces partagés. */
+async function myAccessibleUids() {
+  const uid = auth.currentUser.uid;
+  const account = await getAccount(uid);
+  return [uid, ...(account.collaboratorUids || [])];
+}
+
+/* ---------- Collaboration (invitations) ---------- */
+
+export async function createInvite(toEmail) {
+  const user = auth.currentUser;
+  await addDoc(collection(db, 'invites'), {
+    fromUid: user.uid,
+    fromEmail: user.email,
+    toEmail: toEmail.trim().toLowerCase(),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  });
+}
+
+export async function loadSentInvites() {
+  const user = auth.currentUser;
+  const snap = await getDocs(query(collection(db, 'invites'), where('fromEmail', '==', user.email)));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function loadReceivedInvites() {
+  const user = auth.currentUser;
+  const snap = await getDocs(query(collection(db, 'invites'), where('toEmail', '==', user.email)));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+/* L'acceptation n'écrit que sur le compte de l'utilisateur courant (règles Firestore :
+   chacun ne peut modifier que son propre compte). Le lien de collaboration est
+   symétrique par construction des règles de sécurité (voir firestore.rules, fonction
+   `linked`) : inutile d'écrire aussi sur le compte de l'invitant. */
+export async function acceptInvite(inviteId) {
+  const user = auth.currentUser;
+  const inviteSnap = await getDoc(doc(db, 'invites', inviteId));
+  if (!inviteSnap.exists()) return;
+  const invite = inviteSnap.data();
+  if (invite.toEmail !== user.email.toLowerCase() || invite.status !== 'pending') return;
+
+  const account = await getAccount(user.uid);
+  const collaboratorUids = Array.from(new Set([...(account.collaboratorUids || []), invite.fromUid]));
+  await setDoc(doc(db, 'accounts', user.uid), { email: user.email, collaboratorUids }, { merge: true });
+  await setDoc(doc(db, 'invites', inviteId), { status: 'accepted' }, { merge: true });
+}
+
+export async function declineInvite(inviteId) {
+  await setDoc(doc(db, 'invites', inviteId), { status: 'declined' }, { merge: true });
+}
 
 /* Rend le site installable en PWA (icône d'accueil sur mobile). */
 if ('serviceWorker' in navigator) {
@@ -121,7 +234,8 @@ async function maybeAutoClose(item) {
 /* ---------- Firestore : utilisateurs (propriétaires de tâche) ---------- */
 
 export async function loadUsers() {
-  const snap = await getDocs(collection(db, 'users'));
+  const uids = await myAccessibleUids();
+  const snap = await getDocs(query(collection(db, 'users'), where('ownerUid', 'in', uids)));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -137,7 +251,7 @@ export async function addUser(nom, email, telephone) {
     }
     return { ...existing, ...changes };
   }
-  const docRef = await addDoc(collection(db, 'users'), { nom, email, telephone: telephone || '' });
+  const docRef = await addDoc(collection(db, 'users'), { nom, email, telephone: telephone || '', ownerUid: auth.currentUser.uid });
   return { id: docRef.id, nom, email, telephone: telephone || '' };
 }
 
@@ -152,7 +266,8 @@ export async function deleteUser(id) {
 /* ---------- Firestore : appartements ---------- */
 
 export async function loadApartments() {
-  const snap = await getDocs(collection(db, 'apartments'));
+  const uids = await myAccessibleUids();
+  const snap = await getDocs(query(collection(db, 'apartments'), where('ownerUid', 'in', uids)));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -160,7 +275,7 @@ export async function addApartment(nom) {
   const apartments = await loadApartments();
   const existing = apartments.find(a => a.nom.toLowerCase() === nom.toLowerCase());
   if (existing) return existing;
-  const docRef = await addDoc(collection(db, 'apartments'), { nom });
+  const docRef = await addDoc(collection(db, 'apartments'), { nom, ownerUid: auth.currentUser.uid });
   return { id: docRef.id, nom };
 }
 
@@ -175,20 +290,26 @@ export async function deleteApartment(id) {
 /* ---------- Firestore : aircovers ---------- */
 
 export async function loadItems() {
-  const snap = await getDocs(collection(db, 'aircovers'));
+  const uids = await myAccessibleUids();
+  const snap = await getDocs(query(collection(db, 'aircovers'), where('ownerUid', 'in', uids)));
   const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   await Promise.all(items.map(maybeAutoClose));
   return items;
 }
 
 export async function getItem(id) {
-  const snap = await getDoc(doc(db, 'aircovers', id));
-  if (!snap.exists()) return null;
-  return maybeAutoClose({ id: snap.id, ...snap.data() });
+  try {
+    const snap = await getDoc(doc(db, 'aircovers', id));
+    if (!snap.exists()) return null;
+    return maybeAutoClose({ id: snap.id, ...snap.data() });
+  } catch (err) {
+    if (err.code === 'permission-denied') return null;
+    throw err;
+  }
 }
 
 export async function createItem(data) {
-  const docRef = await addDoc(collection(db, 'aircovers'), data);
+  const docRef = await addDoc(collection(db, 'aircovers'), { ...data, ownerUid: auth.currentUser.uid });
   return docRef.id;
 }
 

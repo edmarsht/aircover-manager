@@ -19,6 +19,7 @@
   <nav>
     <a href="index.html">Liste</a>
     <a href="users.html" class="icon-link active" title="Paramètres">⚙️</a>
+    <a href="#" class="icon-link" id="logout-link" title="Déconnexion">🚪</a>
   </nav>
 </div>
 
@@ -29,6 +30,20 @@
       <p>Gère les utilisateurs et les appartements proposés dans le formulaire.</p>
     </div>
   </div>
+
+  <h2>Collaboration</h2>
+  <div class="card" style="padding:24px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">Inviter un collaborateur</h3>
+    <p class="hint" style="margin-top:0;">Un collaborateur voit et modifie les mêmes AirCovers, appartements et contacts que toi.</p>
+    <div class="field">
+      <label for="invite-email">Adresse email du collaborateur</label>
+      <input type="email" id="invite-email" placeholder="collegue@example.com">
+    </div>
+    <button class="btn btn-primary" id="send-invite-btn">Envoyer l'invitation</button>
+  </div>
+
+  <div id="received-invites"></div>
+  <div id="sent-invites"></div>
 
   <h2>Utilisateurs</h2>
   <div class="card" style="padding:24px;margin-bottom:20px;">
@@ -79,7 +94,10 @@
   import {
     loadUsers, addUser, updateUser, deleteUser,
     loadApartments, addApartment, updateApartment, deleteApartment,
+    requireAuth, logout, createInvite, loadReceivedInvites, loadSentInvites, acceptInvite, declineInvite,
   } from './app.js';
+
+  document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); logout(); });
 
   let users = [];
   let editingUserId = null;
@@ -286,8 +304,63 @@
     setTimeout(() => toast.classList.remove('show'), 2600);
   }
 
-  loadAndRenderUsers();
-  loadAndRenderApartments();
+  async function loadAndRenderInvites() {
+    const [received, sent] = await Promise.all([loadReceivedInvites(), loadSentInvites()]);
+
+    const pendingReceived = received.filter(i => i.status === 'pending');
+    document.getElementById('received-invites').innerHTML = pendingReceived.map(i => `
+      <div class="card" style="padding:18px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div><strong>${escapeHtml(i.fromEmail)}</strong> t'invite à collaborer.</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" data-action="decline-invite" data-id="${i.id}">Refuser</button>
+          <button class="btn btn-primary" data-action="accept-invite" data-id="${i.id}">Accepter</button>
+        </div>
+      </div>
+    `).join('');
+
+    const pendingSent = sent.filter(i => i.status === 'pending');
+    document.getElementById('sent-invites').innerHTML = pendingSent.map(i => `
+      <div class="card" style="padding:14px 20px;margin-bottom:10px;color:var(--ink-soft);font-size:14px;">
+        Invitation envoyée à <strong>${escapeHtml(i.toEmail)}</strong> — en attente de réponse.
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('send-invite-btn').addEventListener('click', async () => {
+    const input = document.getElementById('invite-email');
+    const email = input.value.trim();
+    if (!email) {
+      showToast('Merci de renseigner un email.');
+      return;
+    }
+    await createInvite(email);
+    input.value = '';
+    await loadAndRenderInvites();
+    showToast(`Invitation envoyée à "${email}".`);
+  });
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action="accept-invite"], button[data-action="decline-invite"]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    if (action === 'accept-invite') {
+      await acceptInvite(id);
+      await loadAndRenderInvites();
+      await loadAndRenderUsers();
+      await loadAndRenderApartments();
+      showToast('Invitation acceptée — vous partagez maintenant le même espace.');
+    } else {
+      await declineInvite(id);
+      await loadAndRenderInvites();
+      showToast('Invitation refusée.');
+    }
+  });
+
+  requireAuth().then(() => {
+    loadAndRenderUsers();
+    loadAndRenderApartments();
+    loadAndRenderInvites();
+  });
 </script>
 </body>
 </html>

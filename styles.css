@@ -467,6 +467,7 @@ input[type=text],
 input[type=number],
 input[type=date],
 input[type=email],
+input[type=password],
 input[type=file],
 select,
 textarea {
@@ -777,6 +778,56 @@ input:focus, textarea:focus, select:focus {
   gap: 8px;
 }
 .checkbox-row input { width: auto; }
+
+/* Auth (login / signup) */
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.auth-footer a { color: var(--accent-dark); font-weight: 600; }
+
+.auth-error {
+  background: var(--red-bg);
+  color: var(--red);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: none;
+}
+.auth-error.show { display: block; }
 
 @media (max-width: 760px) {
   .grid-2 { grid-template-columns: 1fr; }
