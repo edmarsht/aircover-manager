@@ -31,6 +31,15 @@
     </div>
   </div>
 
+  <h2>Compte</h2>
+  <div class="card" style="padding:24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div>
+      <div style="font-weight:700;font-size:15px;">Connecté</div>
+      <div style="color:var(--ink-soft);font-size:13px;" id="account-email">—</div>
+    </div>
+    <button class="btn btn-secondary" id="logout-btn-settings">Se déconnecter</button>
+  </div>
+
   <h2>Collaboration</h2>
   <div class="card" style="padding:24px;margin-bottom:20px;">
     <h3 style="margin-top:0;">Inviter un collaborateur</h3>
@@ -356,7 +365,10 @@
     }
   });
 
-  requireAuth().then(() => {
+  document.getElementById('logout-btn-settings').addEventListener('click', () => { logout(); });
+
+  requireAuth().then((user) => {
+    document.getElementById('account-email').textContent = user.email;
     loadAndRenderUsers();
     loadAndRenderApartments();
     loadAndRenderInvites();
