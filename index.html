@@ -75,7 +75,7 @@
 </main>
 
 <script type="module">
-  import { loadItems, getStatus, formatPrice, formatDateShort, reminderFailed, reminderFailures, markAircoverFait } from './app.js';
+  import { loadItems, getStatus, formatPrice, formatDateShort, reminderFailed, reminderFailures } from './app.js';
 
   let currentFilter = 'all';
   let allItems = [];
@@ -175,11 +175,6 @@
           <div class="label">AirCover à faire le</div>
           <div class="value">${formatDateShort(item.dateAircover)}</div>
         </div>
-        <div class="col-action">
-          ${status.key !== 'done' && status.key !== 'waiting'
-            ? `<button type="button" class="btn btn-secondary btn-fait" data-id="${item.id}">✅ Fait</button>`
-            : ''}
-        </div>
         <div class="chevron">›</div>
       </div>
     `).join('');
@@ -198,16 +193,6 @@
     btn.classList.add('active');
     currentFilter = btn.dataset.filter;
     render();
-  });
-
-  document.getElementById('list').addEventListener('click', async (e) => {
-    const btn = e.target.closest('.btn-fait');
-    if (!btn) return;
-    e.stopPropagation();
-    btn.disabled = true;
-    btn.textContent = '…';
-    await markAircoverFait(btn.dataset.id);
-    await loadAndRender();
   });
 
   loadAndRender();

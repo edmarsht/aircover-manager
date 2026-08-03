@@ -163,6 +163,23 @@ main {
 }
 .btn-danger:hover { background: #f6d3ce; }
 
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.montant-percu-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.montant-percu-form input[type=number] {
+  width: 80px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
 .callout-airbnb {
   display: flex;
   align-items: center;
@@ -359,15 +376,6 @@ main {
 .badge-upcoming { background: var(--blue-bg); color: var(--blue); }
 .badge-waiting { background: var(--purple-bg); color: var(--purple); }
 .badge-done { background: var(--green-bg); color: var(--green); }
-
-.col-action {
-  flex-shrink: 0;
-}
-
-.col-action .btn-fait {
-  padding: 7px 12px;
-  font-size: 13px;
-}
 
 .alert-sign {
   flex-shrink: 0;

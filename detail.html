@@ -137,7 +137,17 @@
           <div class="side-row"><span class="k">Locataire</span><span class="v">${escapeHtml(item.locataire)}</span></div>
           <div class="side-row"><span class="k">Prix demandé</span><span class="v">${formatPrice(item.prix)}</span></div>
           <div class="side-row"><span class="k">AirCover fait</span><span class="v">${item.aircoverFait ? '✅ ' + formatDateShort(item.aircoverFaitLe) : '— pas encore'}</span></div>
-          <div class="side-row"><span class="k">Montant perçu</span><span class="v">${item.montantPercu != null ? formatPrice(item.montantPercu) : '— pas encore renseigné'}</span></div>
+          <div class="side-row">
+            <span class="k">Montant perçu</span>
+            ${item.montantPercu != null
+              ? `<span class="v">${formatPrice(item.montantPercu)}</span>`
+              : (!item.statutTermine ? `
+                <span class="v montant-percu-form">
+                  <input type="number" id="montant-percu-input" min="0" step="0.01" placeholder="€">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="validerMontantPercu()">Valider</button>
+                </span>
+              ` : `<span class="v">— pas encore renseigné</span>`)}
+          </div>
           <div class="side-row"><span class="k">Départ locataire</span><span class="v">${formatDateShort(item.dateDepart)}</span></div>
           <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
           <div class="side-row"><span class="k">Email envoyé</span><span class="v">${item.emailEnvoye ? '✅ ' + formatDateShort(item.emailEnvoyeLe) : '— pas encore'}</span></div>
@@ -286,6 +296,18 @@
     showToast('AirCover marqué comme fait — en attente du versement.');
   }
 
+  async function validerMontantPercu() {
+    const input = document.getElementById('montant-percu-input');
+    const val = parseFloat(input.value);
+    if (isNaN(val) || val < 0) {
+      showToast('Merci d\'entrer un montant valide.');
+      return;
+    }
+    await updateItem(item.id, { montantPercu: val, statutTermine: true });
+    await render();
+    showToast('Montant perçu enregistré — AirCover terminé.');
+  }
+
   async function saveEdit(e) {
     const btn = e.target;
     btn.disabled = true;
@@ -328,6 +350,7 @@
   window.saveEdit = saveEdit;
   window.copyEmail = copyEmail;
   window.markFait = markFait;
+  window.validerMontantPercu = validerMontantPercu;
 
   document.getElementById('content').addEventListener('click', (e) => {
     const removeBtn = e.target.closest('.remove[data-remove-idx]');
