@@ -183,7 +183,7 @@ export function getStatus(item) {
   if (item.statutTermine) return { key: 'done', label: 'Terminé' };
   if (item.aircoverFait) return { key: 'waiting', label: 'En attente' };
   const diff = daysBetween(todayISO(), item.dateAircover);
-  if (diff < 0) return { key: 'done', label: 'Terminé' };
+  if (diff < 0) return { key: 'late', label: `En retard (${-diff} j)` };
   if (diff === 0) return { key: 'today', label: "À faire aujourd'hui" };
   return { key: 'upcoming', label: `Dans ${diff} j` };
 }
@@ -207,16 +207,6 @@ export function reminderFailures(item) {
 
 export function reminderFailed(item) {
   return reminderFailures(item).length > 0;
-}
-
-/* Un AirCover non traité au-delà du jour J bascule automatiquement en "Terminé" :
-   passé ce délai, Airbnb ne permet plus de le déposer, donc le suivre comme "en retard" n'a plus d'utilité. */
-async function maybeAutoClose(item) {
-  if (!item.statutTermine && daysBetween(todayISO(), item.dateAircover) < 0) {
-    item.statutTermine = true;
-    await updateItem(item.id, { statutTermine: true });
-  }
-  return item;
 }
 
 /* ---------- Firestore : utilisateurs (propriétaires de tâche) ---------- */
@@ -280,16 +270,14 @@ export async function deleteApartment(id) {
 export async function loadItems() {
   const uids = await myAccessibleUids();
   const snap = await getDocs(query(collection(db, 'aircovers'), where('ownerUid', 'in', uids)));
-  const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  await Promise.all(items.map(maybeAutoClose));
-  return items;
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function getItem(id) {
   try {
     const snap = await getDoc(doc(db, 'aircovers', id));
     if (!snap.exists()) return null;
-    return maybeAutoClose({ id: snap.id, ...snap.data() });
+    return { id: snap.id, ...snap.data() };
   } catch (err) {
     if (err.code === 'permission-denied') return null;
     throw err;

@@ -53,6 +53,7 @@
 
   <div class="filters" id="filters">
     <button class="chip active" data-filter="all">Tous</button>
+    <button class="chip" data-filter="late" id="chip-late">En retard</button>
     <button class="chip" data-filter="today" id="chip-today">Aujourd'hui</button>
     <button class="chip" data-filter="upcoming">À venir</button>
     <button class="chip" data-filter="waiting">En attente</button>
@@ -138,6 +139,7 @@
 
     renderDashboard(items);
     document.getElementById('chip-today').classList.toggle('has-today', items.some(x => x.status.key === 'today'));
+    document.getElementById('chip-late').classList.toggle('has-late', items.some(x => x.status.key === 'late'));
 
     const filtered = currentFilter === 'all'
       ? items
