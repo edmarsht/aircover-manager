@@ -50,7 +50,12 @@
     <button class="btn btn-primary" id="send-invite-btn">Envoyer l'invitation</button>
   </div>
 
+  <h3>Collaborateurs actifs</h3>
+  <div id="active-collaborators"></div>
+
   <div id="received-invites"></div>
+
+  <h3>Invitations envoyées</h3>
   <div id="sent-invites"></div>
 
   <h2>Utilisateurs</h2>
@@ -310,6 +315,13 @@
     setTimeout(() => toast.classList.remove('show'), 2600);
   }
 
+  const INVITE_STATUS_LABEL = { pending: 'En attente de réponse', accepted: 'Acceptée', declined: 'Refusée' };
+  const INVITE_STATUS_BADGE = { pending: 'badge-waiting', accepted: 'badge-done', declined: 'badge-late' };
+
+  function inviteStatusBadge(status) {
+    return `<span class="badge ${INVITE_STATUS_BADGE[status] || 'badge-waiting'}">${INVITE_STATUS_LABEL[status] || status}</span>`;
+  }
+
   async function loadAndRenderInvites() {
     const [received, sent] = await Promise.all([loadReceivedInvites(), loadSentInvites()]);
 
@@ -324,12 +336,28 @@
       </div>
     `).join('');
 
-    const pendingSent = sent.filter(i => i.status === 'pending');
-    document.getElementById('sent-invites').innerHTML = pendingSent.map(i => `
-      <div class="card" style="padding:14px 20px;margin-bottom:10px;color:var(--ink-soft);font-size:14px;">
-        Invitation envoyée à <strong>${escapeHtml(i.toEmail)}</strong> — en attente de réponse.
-      </div>
-    `).join('');
+    // Collaborateurs actifs : invitations acceptées, dans les deux sens (envoyées ou reçues).
+    const activeEmails = Array.from(new Set([
+      ...sent.filter(i => i.status === 'accepted').map(i => i.toEmail),
+      ...received.filter(i => i.status === 'accepted').map(i => i.fromEmail),
+    ]));
+    document.getElementById('active-collaborators').innerHTML = activeEmails.length
+      ? activeEmails.map(email => `
+          <div class="card" style="padding:14px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div><strong>${escapeHtml(email)}</strong></div>
+            ${inviteStatusBadge('accepted')}
+          </div>
+        `).join('')
+      : '<p class="hint">Aucun collaborateur actif pour le moment.</p>';
+
+    document.getElementById('sent-invites').innerHTML = sent.length
+      ? sent.map(i => `
+          <div class="card" style="padding:14px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="color:var(--ink-soft);font-size:14px;">Envoyée à <strong>${escapeHtml(i.toEmail)}</strong></div>
+            ${inviteStatusBadge(i.status)}
+          </div>
+        `).join('')
+      : '<p class="hint">Aucune invitation envoyée pour le moment.</p>';
   }
 
   document.getElementById('send-invite-btn').addEventListener('click', async () => {
