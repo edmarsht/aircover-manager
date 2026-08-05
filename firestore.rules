@@ -2,13 +2,7 @@ rules_version = '2';
 
 /* Règles de sécurité Firestore — AirCover Manager.
    À coller manuellement dans Firebase Console > Firestore Database > Règles > Publier
-   (pas de CLI Firebase installée dans ce repo).
-
-   IMPORTANT : à publier seulement APRÈS s'être connecté une première fois avec le
-   compte principal (la migration automatique `ensureOwnership` dans app.js a besoin
-   des règles ouvertes par défaut pour attribuer les anciens documents sans ownerUid).
-   Publier ces règles avant cette première connexion rendrait les anciennes données
-   inaccessibles. */
+   (pas de CLI Firebase installée dans ce repo). */
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -34,7 +28,15 @@ service cloud.firestore {
 
     match /invites/{id} {
       allow create: if signedIn() && request.auth.token.email == request.resource.data.fromEmail;
-      allow read, update: if signedIn() && request.auth.token.email in [resource.data.fromEmail, resource.data.toEmail];
+      /* Lecture séparée en deux règles distinctes (une par champ) plutôt qu'un
+         `in [fromEmail, toEmail]` unique : Firestore ne peut valider une requête
+         de liste que si son `where()` correspond exactement à la règle. Un `in`
+         portant sur deux champs différents n'est pas prouvable pour une requête
+         qui ne filtre que sur l'un des deux — la requête entière était alors
+         rejetée (permission-denied), même pour son propre auteur. */
+      allow read: if signedIn() && request.auth.token.email == resource.data.fromEmail;
+      allow read: if signedIn() && request.auth.token.email == resource.data.toEmail;
+      allow update: if signedIn() && request.auth.token.email in [resource.data.fromEmail, resource.data.toEmail];
     }
 
     match /aircovers/{id} {
