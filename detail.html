@@ -332,6 +332,7 @@
     btn.textContent = 'Enregistrement…';
 
     const owner = users.find(u => u.id === document.getElementById('e-owner').value);
+    const montantPercu = document.getElementById('e-montant-percu').value === '' ? null : parseFloat(document.getElementById('e-montant-percu').value);
     const data = {
       titre: document.getElementById('e-titre').value.trim(),
       description: document.getElementById('e-description').value.trim(),
@@ -339,14 +340,12 @@
       appartement: document.getElementById('e-appartement').value.trim(),
       locataire: document.getElementById('e-locataire').value.trim(),
       prix: parseFloat(document.getElementById('e-prix').value),
-      montantPercu: document.getElementById('e-montant-percu').value === '' ? null : parseFloat(document.getElementById('e-montant-percu').value),
+      montantPercu,
       dateDepart: document.getElementById('e-date-depart').value,
       dateAircover: document.getElementById('e-date-aircover').value,
       proprietaire: owner,
+      statutTermine: montantPercu != null,
     };
-    if (data.montantPercu != null) {
-      data.statutTermine = true;
-    }
     if (editNewAttachments.length) {
       const uploaded = await Promise.all(editNewAttachments.map(a => uploadAttachment(item.id, a.file)));
       data.pieceJointes = [...item.pieceJointes, ...uploaded];
