@@ -25,10 +25,10 @@
 <body>
 
 <div class="topbar">
-  <a class="brand" href="index.html"><span class="logo-dot">AC</span> AirCover Manager</a>
+  <a class="brand" href="/"><span class="logo-dot">AC</span> AirCover Manager</a>
   <nav>
-    <a href="index.html" class="active">Liste</a>
-    <a href="users.html" class="icon-link" title="Paramètres">⚙️</a>
+    <a href="/" class="active">Liste</a>
+    <a href="/parametres/" class="icon-link" title="Paramètres">⚙️</a>
   </nav>
 </div>
 
@@ -37,7 +37,7 @@
     <div>
       <h1>Mes AirCovers</h1>
     </div>
-    <a href="new.html" class="btn btn-primary">+ Nouveau AirCover</a>
+    <a href="/nouveau/" class="btn btn-primary">+ Nouveau AirCover</a>
   </div>
 
   <a class="callout-airbnb" href="https://www.airbnb.fr/resolutions" target="_blank" rel="noopener">
@@ -156,7 +156,7 @@
     empty.style.display = 'none';
 
     list.innerHTML = filtered.map(({ item, status }) => `
-      <div class="card aircover-row" onclick="location.href='detail.html?id=${item.id}'">
+      <div class="card aircover-row" onclick="location.href='/detail.html?id=${item.id}'">
         <div class="col-main">
           <div class="title-line">
             ${reminderFailed(item) ? alertSign(item) : ''}

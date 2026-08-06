@@ -1,14 +1,14 @@
-const CACHE_NAME = 'aircover-manager-v1';
+const CACHE_NAME = 'aircover-manager-v2';
 const APP_SHELL = [
-  'index.html',
-  'new.html',
-  'detail.html',
-  'users.html',
-  'styles.css',
-  'app.js',
-  'favicon-32.png',
-  'icon-192.png',
-  'icon-512.png',
+  '/',
+  '/nouveau/',
+  '/detail.html',
+  '/parametres/',
+  '/styles.css',
+  '/app.js',
+  '/favicon-32.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {

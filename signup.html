@@ -43,7 +43,7 @@
       <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Créer mon compte</button>
     </form>
 
-    <div class="auth-footer">Déjà un compte ? <a href="login.html">Se connecter</a></div>
+    <div class="auth-footer">Déjà un compte ? <a href="/login.html">Se connecter</a></div>
   </div>
 </div>
 
@@ -58,7 +58,7 @@
      écriture en cours de route. */
   let signingUp = false;
   onAuthStateChanged(auth, (user) => {
-    if (user && !signingUp) location.href = 'index.html';
+    if (user && !signingUp) location.href = '/';
   });
 
   const errorBox = document.getElementById('error');
@@ -101,7 +101,7 @@
     signingUp = true;
     try {
       await signup(email, password);
-      location.href = 'index.html';
+      location.href = '/';
     } catch (err) {
       signingUp = false;
       btn.disabled = false;

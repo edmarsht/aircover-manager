@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirCover Manager — Paramètres</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#FF385C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AirCover">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="/"><span class="logo-dot">AC</span> AirCover Manager</a>
+  <nav>
+    <a href="/">Liste</a>
+    <a href="/parametres/" class="icon-link active" title="Paramètres">⚙️</a>
+  </nav>
+</div>
+
+<main>
+  <div class="page-header">
+    <div>
+      <h1>Paramètres</h1>
+      <p>Gère les utilisateurs et les appartements proposés dans le formulaire.</p>
+    </div>
+  </div>
+
+  <h2>Compte</h2>
+  <div class="card" style="padding:24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div>
+      <div style="font-weight:700;font-size:15px;">Connecté</div>
+      <div style="color:var(--ink-soft);font-size:13px;" id="account-email">—</div>
+    </div>
+    <button class="btn btn-secondary" id="logout-btn-settings">Se déconnecter</button>
+  </div>
+
+  <h2>Collaboration</h2>
+  <div class="card" style="padding:24px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">Inviter un collaborateur</h3>
+    <p class="hint" style="margin-top:0;">Un collaborateur voit et modifie les mêmes AirCovers, appartements et contacts que toi.</p>
+    <div class="field">
+      <label for="invite-email">Adresse email du collaborateur</label>
+      <input type="email" id="invite-email" placeholder="collegue@example.com">
+    </div>
+    <button class="btn btn-primary" id="send-invite-btn">Envoyer l'invitation</button>
+  </div>
+
+  <h3>Collaborateurs actifs</h3>
+  <div id="active-collaborators"></div>
+
+  <div id="received-invites"></div>
+
+  <h3>Invitations envoyées</h3>
+  <div id="sent-invites"></div>
+
+  <h2>Utilisateurs</h2>
+  <div class="card" style="padding:24px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">Ajouter un utilisateur</h3>
+    <div class="grid-2">
+      <div class="field">
+        <label for="new-nom">Nom</label>
+        <input type="text" id="new-nom" placeholder="Ex : Marie Dupont">
+      </div>
+      <div class="field">
+        <label for="new-email">Adresse email</label>
+        <input type="email" id="new-email" placeholder="marie@example.com">
+      </div>
+    </div>
+    <div class="field">
+      <label for="new-tel">Téléphone (optionnel, pour le SMS de rappel)</label>
+      <input type="tel" id="new-tel" placeholder="06 12 34 56 78">
+    </div>
+    <button class="btn btn-primary" id="add-user-btn">Ajouter cet utilisateur</button>
+  </div>
+
+  <div id="users-list"></div>
+
+  <div class="empty-state" id="empty-users" style="display:none">
+    <p>Aucun utilisateur pour le moment.</p>
+  </div>
+
+  <h2 style="margin-top:32px;">Appartements</h2>
+  <div class="card" style="padding:24px;margin-bottom:20px;">
+    <h3 style="margin-top:0;">Ajouter un appartement</h3>
+    <div class="field">
+      <label for="new-apt-nom">Nom</label>
+      <input type="text" id="new-apt-nom" placeholder="Ex : Appartement Bastille">
+    </div>
+    <button class="btn btn-primary" id="add-apartment-btn">Ajouter cet appartement</button>
+  </div>
+
+  <div id="apartments-list"></div>
+
+  <div class="empty-state" id="empty-apartments" style="display:none">
+    <p>Aucun appartement pour le moment.</p>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import {
+    loadUsers, addUser, updateUser, deleteUser,
+    loadApartments, addApartment, updateApartment, deleteApartment,
+    requireAuth, logout, createInvite, loadReceivedInvites, loadSentInvites, acceptInvite, declineInvite,
+  } from '/app.js';
+
+  let users = [];
+  let editingUserId = null;
+  let apartments = [];
+  let editingApartmentId = null;
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  async function loadAndRenderUsers() {
+    document.getElementById('users-list').innerHTML = '<p style="padding:16px 0;color:var(--ink-soft)">Chargement…</p>';
+    users = await loadUsers();
+    renderUsers();
+  }
+
+  function renderUsers() {
+    const list = document.getElementById('users-list');
+    const empty = document.getElementById('empty-users');
+
+    if (!users.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = users.map(u => `
+      <div class="card" style="padding:18px 20px;margin-bottom:10px;">
+        ${editingUserId === u.id ? `
+          <div class="grid-2">
+            <div class="field">
+              <label>Nom</label>
+              <input type="text" id="e-nom-${u.id}" value="${escapeHtml(u.nom)}">
+            </div>
+            <div class="field">
+              <label>Adresse email</label>
+              <input type="email" id="e-email-${u.id}" value="${escapeHtml(u.email)}">
+            </div>
+          </div>
+          <div class="field">
+            <label>Téléphone</label>
+            <input type="tel" id="e-tel-${u.id}" value="${escapeHtml(u.telephone)}" placeholder="06 12 34 56 78">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-ghost" data-action="cancel" data-id="${u.id}">Annuler</button>
+            <button class="btn btn-primary" data-action="save" data-id="${u.id}">Enregistrer</button>
+          </div>
+        ` : `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-weight:700;font-size:15px;">${escapeHtml(u.nom)}</div>
+              <div style="color:var(--ink-soft);font-size:13px;">
+                ${escapeHtml(u.email)} ${u.telephone ? '· ' + escapeHtml(u.telephone) : '· pas de téléphone'}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary" data-action="edit" data-id="${u.id}">✏️ Modifier</button>
+              <button class="btn btn-ghost" data-action="delete" data-id="${u.id}">🗑️ Supprimer</button>
+            </div>
+          </div>
+        `}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('users-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+
+    if (action === 'edit') {
+      editingUserId = id;
+      renderUsers();
+    } else if (action === 'cancel') {
+      editingUserId = null;
+      renderUsers();
+    } else if (action === 'save') {
+      const nom = document.getElementById(`e-nom-${id}`).value.trim();
+      const email = document.getElementById(`e-email-${id}`).value.trim();
+      const telephone = document.getElementById(`e-tel-${id}`).value.trim();
+      if (!nom || !email) {
+        showToast('Merci de renseigner un nom et un email.');
+        return;
+      }
+      await updateUser(id, { nom, email, telephone });
+      editingUserId = null;
+      await loadAndRenderUsers();
+      showToast('Utilisateur mis à jour.');
+    } else if (action === 'delete') {
+      const user = users.find(u => u.id === id);
+      if (!confirm(`Supprimer "${user.nom}" ? Les AirCovers déjà créés garderont son nom, mais il ne sera plus proposé pour les nouveaux.`)) return;
+      await deleteUser(id);
+      await loadAndRenderUsers();
+      showToast('Utilisateur supprimé.');
+    }
+  });
+
+  document.getElementById('add-user-btn').addEventListener('click', async () => {
+    const nom = document.getElementById('new-nom').value.trim();
+    const email = document.getElementById('new-email').value.trim();
+    const telephone = document.getElementById('new-tel').value.trim();
+    if (!nom || !email) {
+      showToast('Merci de renseigner un nom et un email.');
+      return;
+    }
+    await addUser(nom, email, telephone);
+    document.getElementById('new-nom').value = '';
+    document.getElementById('new-email').value = '';
+    document.getElementById('new-tel').value = '';
+    await loadAndRenderUsers();
+    showToast(`Utilisateur "${nom}" ajouté.`);
+  });
+
+  async function loadAndRenderApartments() {
+    document.getElementById('apartments-list').innerHTML = '<p style="padding:16px 0;color:var(--ink-soft)">Chargement…</p>';
+    apartments = await loadApartments();
+    renderApartments();
+  }
+
+  function renderApartments() {
+    const list = document.getElementById('apartments-list');
+    const empty = document.getElementById('empty-apartments');
+
+    if (!apartments.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = apartments.map(a => `
+      <div class="card" style="padding:18px 20px;margin-bottom:10px;">
+        ${editingApartmentId === a.id ? `
+          <div class="field">
+            <label>Nom</label>
+            <input type="text" id="e-apt-nom-${a.id}" value="${escapeHtml(a.nom)}">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-ghost" data-action="cancel" data-id="${a.id}">Annuler</button>
+            <button class="btn btn-primary" data-action="save" data-id="${a.id}">Enregistrer</button>
+          </div>
+        ` : `
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="font-weight:700;font-size:15px;">${escapeHtml(a.nom)}</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary" data-action="edit" data-id="${a.id}">✏️ Modifier</button>
+              <button class="btn btn-ghost" data-action="delete" data-id="${a.id}">🗑️ Supprimer</button>
+            </div>
+          </div>
+        `}
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('apartments-list').addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+
+    if (action === 'edit') {
+      editingApartmentId = id;
+      renderApartments();
+    } else if (action === 'cancel') {
+      editingApartmentId = null;
+      renderApartments();
+    } else if (action === 'save') {
+      const nom = document.getElementById(`e-apt-nom-${id}`).value.trim();
+      if (!nom) {
+        showToast('Merci de renseigner un nom.');
+        return;
+      }
+      await updateApartment(id, { nom });
+      editingApartmentId = null;
+      await loadAndRenderApartments();
+      showToast('Appartement mis à jour.');
+    } else if (action === 'delete') {
+      const apartment = apartments.find(a => a.id === id);
+      if (!confirm(`Supprimer "${apartment.nom}" ? Les AirCovers déjà créés garderont ce nom, mais il ne sera plus proposé pour les nouveaux.`)) return;
+      await deleteApartment(id);
+      await loadAndRenderApartments();
+      showToast('Appartement supprimé.');
+    }
+  });
+
+  document.getElementById('add-apartment-btn').addEventListener('click', async () => {
+    const nom = document.getElementById('new-apt-nom').value.trim();
+    if (!nom) {
+      showToast('Merci de renseigner un nom.');
+      return;
+    }
+    await addApartment(nom);
+    document.getElementById('new-apt-nom').value = '';
+    await loadAndRenderApartments();
+    showToast(`Appartement "${nom}" ajouté.`);
+  });
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
+  const INVITE_STATUS_LABEL = { pending: 'En attente de réponse', accepted: 'Acceptée', declined: 'Refusée' };
+  const INVITE_STATUS_BADGE = { pending: 'badge-waiting', accepted: 'badge-done', declined: 'badge-late' };
+
+  function inviteStatusBadge(status) {
+    return `<span class="badge ${INVITE_STATUS_BADGE[status] || 'badge-waiting'}">${INVITE_STATUS_LABEL[status] || status}</span>`;
+  }
+
+  async function loadAndRenderInvites() {
+    const [received, sent] = await Promise.all([loadReceivedInvites(), loadSentInvites()]);
+
+    const pendingReceived = received.filter(i => i.status === 'pending');
+    document.getElementById('received-invites').innerHTML = pendingReceived.map(i => `
+      <div class="card" style="padding:18px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div><strong>${escapeHtml(i.fromEmail)}</strong> t'invite à collaborer.</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" data-action="decline-invite" data-id="${i.id}">Refuser</button>
+          <button class="btn btn-primary" data-action="accept-invite" data-id="${i.id}">Accepter</button>
+        </div>
+      </div>
+    `).join('');
+
+    // Collaborateurs actifs : invitations acceptées, dans les deux sens (envoyées ou reçues).
+    const activeEmails = Array.from(new Set([
+      ...sent.filter(i => i.status === 'accepted').map(i => i.toEmail),
+      ...received.filter(i => i.status === 'accepted').map(i => i.fromEmail),
+    ]));
+    document.getElementById('active-collaborators').innerHTML = activeEmails.length
+      ? activeEmails.map(email => `
+          <div class="card" style="padding:14px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div><strong>${escapeHtml(email)}</strong></div>
+            ${inviteStatusBadge('accepted')}
+          </div>
+        `).join('')
+      : '<p class="hint">Aucun collaborateur actif pour le moment.</p>';
+
+    document.getElementById('sent-invites').innerHTML = sent.length
+      ? sent.map(i => `
+          <div class="card" style="padding:14px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="color:var(--ink-soft);font-size:14px;">Envoyée à <strong>${escapeHtml(i.toEmail)}</strong></div>
+            ${inviteStatusBadge(i.status)}
+          </div>
+        `).join('')
+      : '<p class="hint">Aucune invitation envoyée pour le moment.</p>';
+  }
+
+  document.getElementById('send-invite-btn').addEventListener('click', async () => {
+    const input = document.getElementById('invite-email');
+    const email = input.value.trim();
+    if (!email) {
+      showToast('Merci de renseigner un email.');
+      return;
+    }
+    await createInvite(email);
+    input.value = '';
+    await loadAndRenderInvites();
+    showToast(`Invitation envoyée à "${email}".`);
+  });
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action="accept-invite"], button[data-action="decline-invite"]');
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    if (action === 'accept-invite') {
+      await acceptInvite(id);
+      await loadAndRenderInvites();
+      await loadAndRenderUsers();
+      await loadAndRenderApartments();
+      showToast('Invitation acceptée — vous partagez maintenant le même espace.');
+    } else {
+      await declineInvite(id);
+      await loadAndRenderInvites();
+      showToast('Invitation refusée.');
+    }
+  });
+
+  document.getElementById('logout-btn-settings').addEventListener('click', () => { logout(); });
+
+  requireAuth().then((user) => {
+    document.getElementById('account-email').textContent = user.email;
+    loadAndRenderUsers();
+    loadAndRenderApartments();
+    loadAndRenderInvites();
+  });
+</script>
+</body>
+</html>

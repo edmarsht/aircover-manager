@@ -36,7 +36,7 @@ export function requireAuth() {
   return new Promise((resolve) => {
     onAuthStateChanged(auth, (user) => {
       if (!user) {
-        location.href = 'login.html';
+        location.href = '/login.html';
         return;
       }
       resolve(user);
@@ -46,7 +46,7 @@ export function requireAuth() {
 
 export async function logout() {
   await signOut(auth);
-  location.href = 'login.html';
+  location.href = '/login.html';
 }
 
 export async function signup(email, password) {

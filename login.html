@@ -36,7 +36,7 @@
     </form>
 
     <div class="auth-footer"><a href="#" id="forgot-link">Mot de passe oublié ?</a></div>
-    <div class="auth-footer">Pas encore de compte ? <a href="signup.html">Créer un compte</a></div>
+    <div class="auth-footer">Pas encore de compte ? <a href="/signup.html">Créer un compte</a></div>
   </div>
 </div>
 
@@ -47,7 +47,7 @@
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   onAuthStateChanged(auth, (user) => {
-    if (user) location.href = 'index.html';
+    if (user) location.href = '/';
   });
 
   const errorBox = document.getElementById('error');
@@ -89,7 +89,7 @@
     btn.innerHTML = '<span class="spinner"></span> Connexion…';
     try {
       await login(email, password);
-      location.href = 'index.html';
+      location.href = '/';
     } catch (err) {
       btn.disabled = false;
       btn.textContent = originalLabel;
