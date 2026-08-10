@@ -194,14 +194,17 @@ export async function markAircoverFait(id) {
   await updateItem(id, { aircoverFait: true, aircoverFaitLe: todayISO() });
 }
 
-/* Clôturé sans confirmation d'envoi sur un canal qui aurait dû fonctionner :
-   l'email est toujours tenté, le SMS seulement si un téléphone est renseigné
-   (sinon smsEnvoye reste à false sans que ce soit un échec — juste non applicable). */
+/* Clôturé sans confirmation d'envoi sur un canal qui aurait dû fonctionner.
+   Email et SMS sont désormais envoyés à l'équipe (Edouard + Christopher), plus
+   l'email en copie à l'entreprise — indépendamment du propriétaire assigné à
+   la tâche. Le SMS n'est tenté que pour les comptes autorisés (voir
+   functions/index.js) ; pour les autres, smsEnvoye reste à false sans que ce
+   soit un échec, mais tous les comptes utilisés aujourd'hui sont autorisés. */
 export function reminderFailures(item) {
   if (!item.statutTermine) return [];
   const failures = [];
   if (!item.reminderEnvoye) failures.push('email');
-  if (item.proprietaire.telephone && !item.smsEnvoye) failures.push('sms');
+  if (!item.smsEnvoye) failures.push('sms');
   return failures;
 }
 
@@ -369,15 +372,22 @@ export function openLightbox({ url, name, isImage }) {
 
 /* ---------- Contenu de l'email simulé ---------- */
 
+/* Doit rester synchronisé avec TEAM_NOTIFY / COPY_RECIPIENT dans functions/index.js
+   (équipe restreinte à Edouard + Christopher pour le moment). */
+const TEAM_EMAILS = ['edtoulet@gmail.com', 'christopher.malmezac@gmail.com'];
+const COPY_RECIPIENT = 'contact@ec-immo.fr';
+
 export function buildEmailContent(item) {
   const blocks = [];
-  blocks.push(`À : ${item.proprietaire.email}`);
+  blocks.push(`À : ${TEAM_EMAILS.join(', ')}`);
+  blocks.push(`Cc : ${COPY_RECIPIENT}`);
   blocks.push(`Objet : Rappel — AirCover à déposer aujourd'hui : ${item.titre}`);
-  blocks.push(`Bonjour ${item.proprietaire.nom},`);
+  blocks.push(`Bonjour,`);
   blocks.push(`C'est le jour J : le délai de ${DELAI_JOURS} jours après le départ du locataire arrive à échéance. Voici les informations à reporter dans la demande AirCover sur Airbnb :`);
   blocks.push(
     [
       `Titre : ${item.titre}`,
+      `Assigné à : ${item.proprietaire.nom} (${item.proprietaire.email})`,
       `Appartement concerné : ${item.appartement || '—'}`,
       `Locataire concerné : ${item.locataire}`,
       `Date de départ du locataire : ${formatDateShort(item.dateDepart)}`,

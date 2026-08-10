@@ -26,17 +26,42 @@ function formatPrice(n) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
 }
 
+const COPY_RECIPIENT = 'contact@ec-immo.fr';
+
+/* Équipe restreinte pour le moment : seuls Edouard et Christopher reçoivent les
+   rappels jour même (email + SMS), quel que soit le propriétaire assigné à la
+   tâche. À étendre le jour où d'autres membres rejoignent. */
+const TEAM_NOTIFY = [
+  { nom: 'Edouard', email: 'edtoulet@gmail.com', telephone: '0627135723' },
+  { nom: 'Christopher', email: 'christopher.malmezac@gmail.com', telephone: '0769620448' },
+];
+
+/* Comptes Firebase (accounts/{uid}.email) autorisés à déclencher un SMS.
+   Protège contre un compte piraté ou créé par un tiers qui ajouterait des
+   tâches en masse avec des numéros de téléphone pour gonfler la facture Twilio. */
+const SMS_ALLOWED_ACCOUNT_EMAILS = TEAM_NOTIFY.map(m => m.email.toLowerCase());
+
+async function isSmsAllowedForItem(item) {
+  if (!item.ownerUid) return false;
+  const accountSnap = await db.collection('accounts').doc(item.ownerUid).get();
+  if (!accountSnap.exists) return false;
+  const email = (accountSnap.data().email || '').toLowerCase();
+  return SMS_ALLOWED_ACCOUNT_EMAILS.includes(email);
+}
+
 /* Même contenu que buildEmailContent() dans app.js — dupliqué ici car cette
    fonction tourne côté serveur (Node), séparément du code du site (navigateur). */
 function buildEmailContent(item) {
   const blocks = [];
-  blocks.push(`À : ${item.proprietaire.email}`);
+  blocks.push(`À : ${TEAM_NOTIFY.map(m => m.email).join(', ')}`);
+  blocks.push(`Cc : ${COPY_RECIPIENT}`);
   blocks.push(`Objet : Rappel — AirCover à déposer aujourd'hui : ${item.titre}`);
-  blocks.push(`Bonjour ${item.proprietaire.nom},`);
+  blocks.push(`Bonjour,`);
   blocks.push(`C'est le jour J : le délai de ${DELAI_JOURS} jours après le départ du locataire arrive à échéance. Voici les informations à reporter dans la demande AirCover sur Airbnb :`);
   blocks.push(
     [
       `Titre : ${item.titre}`,
+      `Assigné à : ${item.proprietaire.nom} (${item.proprietaire.email})`,
       `Appartement concerné : ${item.appartement || '—'}`,
       `Locataire concerné : ${item.locataire}`,
       `Date de départ du locataire : ${formatDateShort(item.dateDepart)}`,
@@ -57,8 +82,6 @@ function buildEmailContent(item) {
   return blocks.join('\n\n');
 }
 
-const COPY_RECIPIENT = 'contact@ec-immo.fr';
-
 async function sendEmail(item) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -68,7 +91,7 @@ async function sendEmail(item) {
     },
     body: JSON.stringify({
       from: 'AirCover Manager <aircover@ec-immo.fr>',
-      to: item.proprietaire.email,
+      to: TEAM_NOTIFY.map(m => m.email),
       cc: COPY_RECIPIENT,
       subject: `Rappel — AirCover à déposer aujourd'hui : ${item.titre}`,
       text: buildEmailContent(item),
@@ -80,7 +103,7 @@ async function sendEmail(item) {
 }
 
 function buildSmsContent(item) {
-  return `Rappel AirCover Manager : vous devez réaliser un AirCover aujourd'hui pour l'appartement ${item.appartement || '—'}, voyageur ${item.locataire}.`;
+  return `Rappel AirCover Manager : un AirCover doit être réalisé aujourd'hui pour l'appartement ${item.appartement || '—'}, voyageur ${item.locataire}.`;
 }
 
 /* Numéros français saisis en local (ex: "06 12 34 56 78") → format E.164 attendu par Twilio. */
@@ -92,22 +115,24 @@ function toE164France(phone) {
 }
 
 async function sendSms(item) {
-  const to = toE164France(item.proprietaire.telephone);
-  const body = new URLSearchParams({
-    To: to,
-    MessagingServiceSid: TWILIO_MESSAGING_SERVICE_SID,
-    Body: buildSmsContent(item),
-  });
-  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body,
-  });
-  if (!res.ok) {
-    throw new Error(`Twilio ${res.status}: ${await res.text()}`);
+  const body = buildSmsContent(item);
+  for (const member of TEAM_NOTIFY) {
+    const params = new URLSearchParams({
+      To: toE164France(member.telephone),
+      MessagingServiceSid: TWILIO_MESSAGING_SERVICE_SID,
+      Body: body,
+    });
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+    });
+    if (!res.ok) {
+      throw new Error(`Twilio ${res.status}: ${await res.text()}`);
+    }
   }
 }
 
@@ -142,7 +167,7 @@ http('sendAircoverReminders', async (req, res) => {
       }
     }
 
-    if (!item.smsEnvoye && item.proprietaire.telephone) {
+    if (!item.smsEnvoye && (await isSmsAllowedForItem(item))) {
       try {
         await sendSms(item);
         await docSnap.ref.update({ smsEnvoye: true, smsEnvoyeLe: today });

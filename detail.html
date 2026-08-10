@@ -32,7 +32,7 @@
 
 <script type="module">
   import {
-    getItem, updateItem, loadUsers, loadApartments, getStatus, buildEmailContent,
+    getItem, updateItem, deleteItem, loadUsers, loadApartments, getStatus, buildEmailContent,
     formatPrice, formatDateShort, initials, addDays, todayISO, DELAI_JOURS,
     uploadAttachment, openLightbox, reminderFailed, reminderFailures, markAircoverFait,
     requireAuth,
@@ -109,6 +109,7 @@
           ${!editMode ? `
             ${status.key !== 'done' && status.key !== 'waiting' ? `<button class="btn btn-secondary" onclick="markFait(event)">✅ Marquer fait</button>` : ''}
             <button class="btn btn-primary" onclick="enterEdit()">✏️ Modifier</button>
+            <button class="btn btn-danger" onclick="askDelete()">🗑️ Supprimer</button>
           ` : `
             <button class="btn btn-ghost" onclick="cancelEdit()">Annuler</button>
             <button class="btn btn-primary" onclick="saveEdit(event)">Enregistrer</button>
@@ -168,7 +169,7 @@
           <div class="side-row"><span class="k">Jour AirCover</span><span class="v">${formatDateShort(item.dateAircover)}</span></div>
           <div class="side-row"><span class="k">Email envoyé</span><span class="v">${item.emailEnvoye ? '✅ ' + formatDateShort(item.emailEnvoyeLe) : '— pas encore'}</span></div>
           <div class="side-row"><span class="k">Rappel email jour J</span><span class="v">${item.reminderEnvoye ? '✅ ' + formatDateShort(item.reminderEnvoyeLe) : '— pas encore'}</span></div>
-          <div class="side-row"><span class="k">Rappel SMS jour J</span><span class="v">${item.smsEnvoye ? '✅ ' + formatDateShort(item.smsEnvoyeLe) : (item.proprietaire.telephone ? '— pas encore' : '— pas de téléphone')}</span></div>
+          <div class="side-row"><span class="k">Rappel SMS jour J</span><span class="v">${item.smsEnvoye ? '✅ ' + formatDateShort(item.smsEnvoyeLe) : '— pas encore'}</span></div>
           <div class="side-row"><span class="k">Pièces jointes</span><span class="v">${item.pieceJointes.length}</span></div>
         </div>
       </div>
@@ -362,12 +363,19 @@
     navigator.clipboard.writeText(text).then(() => showToast('Contenu copié dans le presse-papiers.'));
   }
 
+  async function askDelete() {
+    if (!confirm(`Supprimer « ${item.titre} » ? Cette action est irréversible.`)) return;
+    await deleteItem(item.id);
+    location.href = '/';
+  }
+
   window.enterEdit = enterEdit;
   window.cancelEdit = cancelEdit;
   window.saveEdit = saveEdit;
   window.copyEmail = copyEmail;
   window.markFait = markFait;
   window.validerMontantPercu = validerMontantPercu;
+  window.askDelete = askDelete;
 
   document.getElementById('content').addEventListener('click', (e) => {
     const removeBtn = e.target.closest('.remove[data-remove-idx]');
