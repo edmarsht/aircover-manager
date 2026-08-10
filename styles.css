@@ -291,12 +291,6 @@ main {
   animation: neon-pulse-red 1.6s ease-in-out infinite;
 }
 
-.chip.has-late {
-  border-color: var(--red);
-  color: var(--red);
-  animation: neon-pulse-red 1.6s ease-in-out infinite;
-}
-
 @keyframes neon-pulse-red {
   0%, 100% {
     box-shadow: 0 0 4px rgba(255,56,92,0.7), 0 0 10px rgba(255,56,92,0.5), 0 0 18px rgba(255,56,92,0.3);
