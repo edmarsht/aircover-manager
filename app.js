@@ -134,7 +134,7 @@ if ('serviceWorker' in navigator) {
 /* À renseigner une fois la propriété GA4 créée dans Google Analytics
    (format "G-XXXXXXXXXX"). Tant que c'est vide, rien n'est chargé même
    si le consentement a été donné. */
-const GA_MEASUREMENT_ID = '';
+const GA_MEASUREMENT_ID = 'G-V0Z5JQ5CM3';
 
 function loadAnalytics() {
   if (!GA_MEASUREMENT_ID || document.getElementById('ga-script')) return;
