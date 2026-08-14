@@ -129,11 +129,10 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
-/* ---------- Consentement cookies (RGPD/CNIL) ---------- */
+/* ---------- Analytics ---------- */
 
-/* À renseigner une fois la propriété GA4 créée dans Google Analytics
-   (format "G-XXXXXXXXXX"). Tant que c'est vide, rien n'est chargé même
-   si le consentement a été donné. */
+/* Usage interne uniquement (Christopher et Edouard) : pas de bandeau de
+   consentement, chargement direct. */
 const GA_MEASUREMENT_ID = 'G-V0Z5JQ5CM3';
 
 function loadAnalytics() {
@@ -150,41 +149,7 @@ function loadAnalytics() {
   gtag('config', GA_MEASUREMENT_ID);
 }
 
-function initCookieConsent() {
-  const consent = localStorage.getItem('cookieConsent');
-  if (consent === 'accepted') {
-    loadAnalytics();
-    return;
-  }
-  if (consent === 'declined') return;
-
-  const banner = document.createElement('div');
-  banner.className = 'cookie-banner';
-  banner.innerHTML = `
-    <p>Ce site utilise des cookies de mesure d'audience (Google Analytics) pour comprendre son usage. Tu peux accepter ou refuser.</p>
-    <div class="cookie-banner-actions">
-      <button type="button" class="btn btn-ghost" id="cookie-decline">Refuser</button>
-      <button type="button" class="btn btn-primary" id="cookie-accept">Accepter</button>
-    </div>
-  `;
-  document.body.appendChild(banner);
-
-  document.getElementById('cookie-accept').addEventListener('click', () => {
-    localStorage.setItem('cookieConsent', 'accepted');
-    loadAnalytics();
-    banner.remove();
-  });
-  document.getElementById('cookie-decline').addEventListener('click', () => {
-    localStorage.setItem('cookieConsent', 'declined');
-    banner.remove();
-  });
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initCookieConsent);
-} else {
-  initCookieConsent();
-}
+loadAnalytics();
 
 /* ---------- Utilitaires dates ---------- */
 
