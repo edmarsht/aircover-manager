@@ -1,9 +1,10 @@
-const CACHE_NAME = 'aircover-manager-v2';
+const CACHE_NAME = 'aircover-manager-v3';
 const APP_SHELL = [
   '/',
   '/nouveau/',
   '/detail.html',
   '/parametres/',
+  '/offline.html',
   '/styles.css',
   '/app.js',
   '/favicon-32.png',
@@ -38,6 +39,10 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
         return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() =>
+        caches.match(event.request).then((cached) =>
+          cached || (event.request.mode === 'navigate' ? caches.match('/offline.html') : undefined)
+        )
+      )
   );
 });

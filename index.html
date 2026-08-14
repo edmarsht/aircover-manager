@@ -19,10 +19,21 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#FF385C">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="AirCover">
 <link rel="stylesheet" href="styles.css">
+<script>
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    document.documentElement.classList.add('pwa-standalone');
+  }
+</script>
 </head>
 <body>
+
+<div class="pwa-splash" aria-hidden="true">
+  <div class="pwa-splash-ring"></div>
+  <div class="pwa-splash-logo">AC</div>
+</div>
 
 <div class="topbar">
   <a class="brand" href="/"><span class="logo-dot">AC</span> AirCover Manager</a>
