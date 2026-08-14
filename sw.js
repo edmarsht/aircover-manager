@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aircover-manager-v4';
+const CACHE_NAME = 'aircover-manager-v5';
 const APP_SHELL = [
   '/',
   '/nouveau/',
