@@ -23,8 +23,14 @@
 <meta name="apple-mobile-web-app-title" content="AirCover">
 <link rel="stylesheet" href="styles.css">
 <script>
-  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+  /* Le splash ne doit jouer qu'au vrai lancement de l'app (icône sur l'écran
+     d'accueil), pas à chaque retour sur "/" pendant la session — ex: clic sur
+     "Liste" depuis une autre page. sessionStorage survit à la navigation entre
+     pages mais est réinitialisé quand l'app est fermée puis relancée. */
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (isStandalone && !sessionStorage.getItem('splashShown')) {
     document.documentElement.classList.add('pwa-standalone');
+    sessionStorage.setItem('splashShown', '1');
   }
 </script>
 </head>
