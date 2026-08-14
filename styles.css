@@ -837,6 +837,39 @@ input:focus, textarea:focus, select:focus {
   pointer-events: auto;
 }
 
+.cookie-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 500;
+  max-width: 640px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cookie-banner p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+  flex: 1 1 260px;
+}
+
+.cookie-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
