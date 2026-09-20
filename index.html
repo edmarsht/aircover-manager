@@ -188,7 +188,7 @@
             ${item.reminderEnvoye ? '<span>✅ Rappel envoyé</span>' : '<span>✉️ Rappel à venir</span>'}
           </div>
         </div>
-        <div class="col-price">${formatPrice(item.prix)}</div>
+        <div class="col-price">${formatPrice(item.statutTermine && item.montantPercu != null ? item.montantPercu : item.prix)}</div>
         <div class="col-date">
           <div class="label">AirCover à faire le</div>
           <div class="value">${formatDateShort(item.dateAircover)}</div>
