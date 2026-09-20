@@ -71,11 +71,20 @@ async function getAccount(uid) {
 }
 
 /* uid du compte courant + ses collaborateurs : sert à filtrer les listes (aircovers,
-   appartements, contacts) pour n'afficher que l'espace privé + les espaces partagés. */
+   appartements, contacts) pour n'afficher que l'espace privé + les espaces partagés.
+
+   Le lien est stocké de façon asymétrique (voir acceptInvite) : seul le compte de
+   la personne qui accepte enregistre l'autre dans son collaboratorUids. Il faut
+   donc aussi chercher, en plus de nos propres collaborateurs, les comptes qui NOUS
+   ont dans LEUR liste — sinon la personne qui a envoyé l'invitation ne voit jamais
+   ce qu'ajoute celle qui l'a acceptée. */
 async function myAccessibleUids() {
   const uid = auth.currentUser.uid;
   const account = await getAccount(uid);
-  return [uid, ...(account.collaboratorUids || [])];
+  const linkedFromMe = account.collaboratorUids || [];
+  const linkedToMe = await getDocs(query(collection(db, 'accounts'), where('collaboratorUids', 'array-contains', uid)));
+  const reverseUids = linkedToMe.docs.map(d => d.id);
+  return Array.from(new Set([uid, ...linkedFromMe, ...reverseUids]));
 }
 
 /* ---------- Collaboration (invitations) ---------- */

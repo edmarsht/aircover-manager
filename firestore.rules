@@ -24,6 +24,11 @@ service cloud.firestore {
 
     match /accounts/{uid} {
       allow read, create, update: if signedIn() && request.auth.uid == uid;
+      /* Permet à myAccessibleUids() (app.js) de retrouver les comptes qui NOUS ont
+         dans leur collaboratorUids, même quand ce n'est pas nous qui avons accepté
+         l'invitation — le lien reste symétrique côté visibilité malgré une écriture
+         à sens unique à l'acceptation. */
+      allow read: if signedIn() && request.auth.uid in resource.data.collaboratorUids;
     }
 
     match /invites/{id} {
