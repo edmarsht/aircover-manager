@@ -221,9 +221,15 @@ export async function markAircoverFait(id) {
    l'email en copie à l'entreprise — indépendamment du propriétaire assigné à
    la tâche. Le SMS n'est tenté que pour les comptes autorisés (voir
    functions/index.js) ; pour les autres, smsEnvoye reste à false sans que ce
-   soit un échec, mais tous les comptes utilisés aujourd'hui sont autorisés. */
+   soit un échec, mais tous les comptes utilisés aujourd'hui sont autorisés.
+
+   Si la tâche était déjà en retard (jour AirCover déjà passé), le rappel
+   automatique n'a plus pu se déclencher — le cron ne tente d'envoyer que le
+   jour J exact — donc ce n'est pas un échec à signaler, juste une fenêtre
+   ratée avant la clôture manuelle. */
 export function reminderFailures(item) {
   if (!item.statutTermine) return [];
+  if (daysBetween(item.dateAircover, todayISO()) > 0) return [];
   const failures = [];
   if (!item.reminderEnvoye) failures.push('email');
   if (!item.smsEnvoye) failures.push('sms');
